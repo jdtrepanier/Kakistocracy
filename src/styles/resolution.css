@@ -1,0 +1,113 @@
+/* Phase 3 resolution flow: showdown, preview, roll, result (extends .menu-overlay). */
+
+.resolution-overlay {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+}
+
+.showdown-prompt {
+  max-width: 420px;
+  line-height: 1.6;
+  color: var(--cream);
+}
+
+.showdown-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.showdown-choice {
+  text-align: left;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-official-name {
+  color: var(--cream);
+}
+
+.preview-action-name {
+  margin: 0;
+  color: var(--gold);
+  font-size: 8px;
+}
+
+.preview-chance {
+  margin: 0;
+  color: var(--cream);
+}
+
+.preview-effects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.preview-effects li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--cream);
+}
+
+.preview-effect-over-time {
+  opacity: 0.75;
+}
+
+.preview-note {
+  margin: 0;
+  color: var(--orange);
+  opacity: 0.9;
+}
+
+.preview-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.rolling-text {
+  margin: 0;
+  color: var(--gold);
+  animation: resolution-rolling-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes resolution-rolling-pulse {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.resolution-verdict {
+  margin: 0;
+  font-size: 10px;
+  font-weight: normal;
+}
+
+.resolution-verdict.is-success {
+  color: var(--gold);
+}
+
+.resolution-verdict.is-fail {
+  color: var(--red);
+}
+
+.resolution-headline {
+  max-width: 380px;
+  color: var(--cream);
+}

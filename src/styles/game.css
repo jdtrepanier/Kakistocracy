@@ -1,0 +1,203 @@
+/* Phase 1 gameplay screen: action list, month-end report, ending screen. */
+
+.game-screen {
+  position: absolute;
+  inset: var(--hud-height) 0 var(--ticker-height) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 6px;
+}
+
+.game-screen-title {
+  margin: 0;
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: normal;
+}
+
+.action-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.action-button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 4px 5px;
+  text-align: left;
+}
+
+.action-meta {
+  display: flex;
+  gap: 8px;
+  opacity: 0.85;
+}
+
+.action-room {
+  opacity: 0.75;
+}
+
+.action-chance {
+  color: var(--navy-dark);
+  font-weight: normal;
+}
+
+.action-button:disabled {
+  background: var(--navy-light);
+  color: var(--cream);
+  opacity: 0.5;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.action-button:disabled .action-chance {
+  color: inherit;
+}
+
+.end-month-button {
+  flex: none;
+  align-self: stretch;
+  padding: 5px;
+}
+
+/* Month-end report */
+
+.report-overlay {
+  position: absolute;
+  inset: var(--hud-height) 0 var(--ticker-height) 0;
+  background: var(--navy-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  overflow-y: auto;
+}
+
+.report-title {
+  margin: 0;
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: normal;
+}
+
+.report-empty {
+  margin: 0;
+  color: var(--cream);
+  opacity: 0.8;
+}
+
+.report-actions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.report-action {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.report-action.is-success {
+  color: var(--cream);
+}
+
+.report-action.is-fail {
+  color: var(--orange);
+}
+
+.report-event {
+  margin: 0;
+}
+
+.report-event p {
+  margin: 0;
+  color: var(--cream);
+}
+
+.report-midterms p,
+.report-impeachment-watch p {
+  margin: 0;
+  color: var(--gold);
+}
+
+.report-impeachment-watch p {
+  color: var(--orange);
+}
+
+.report-stats {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.report-stats th,
+.report-stats td {
+  text-align: left;
+  font-weight: normal;
+  padding: 2px 6px 2px 0;
+}
+
+.report-stats th {
+  color: var(--gold);
+}
+
+.report-delta {
+  color: var(--cream);
+  opacity: 0.85;
+}
+
+.report-continue {
+  align-self: center;
+  margin-top: 2px;
+}
+
+/* Ending screen */
+
+.ending-screen {
+  position: absolute;
+  inset: var(--hud-height) 0 var(--ticker-height) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 16px;
+  text-align: center;
+}
+
+.ending-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: normal;
+  color: var(--red);
+  text-shadow: 2px 2px 0 var(--navy-dark);
+}
+
+.ending-body {
+  margin: 0;
+  max-width: 440px;
+  line-height: 1.5;
+  color: var(--cream);
+}
+
+.ending-score {
+  margin: 0;
+  color: var(--gold);
+}
+
+.ending-new-game {
+  margin-top: 4px;
+}

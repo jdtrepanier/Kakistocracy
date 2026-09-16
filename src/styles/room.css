@@ -1,0 +1,306 @@
+/* Phase 2 room slice: grid room view, cross menu, official/room windows, overlays. */
+
+.room-chrome {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  flex: none;
+}
+
+.official-window,
+.room-window {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 5px;
+  background: var(--navy-dark);
+  border: 1px solid var(--gold-dim);
+  min-width: 0;
+}
+
+.official-portrait {
+  flex: none;
+  width: 16px;
+  height: 20px;
+  object-fit: cover;
+  object-position: top center;
+  image-rendering: pixelated;
+}
+
+.official-name {
+  color: var(--cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.room-window {
+  justify-content: flex-end;
+}
+
+.room-window-name {
+  color: var(--gold);
+}
+
+.room-viewport-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.room-viewport {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  outline: none;
+}
+
+/* Isometric room camera (2:1 dimetric — see ui/room/isometric.ts). `.room-iso-world` is
+ * sized to fit the whole projected room and translated to follow the player, like a
+ * camera panning over a dollhouse; every tile/block below is positioned absolutely
+ * within it at the coordinates `isometric.ts` computes. */
+.room-iso-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: transform 120ms linear;
+}
+
+/* A flat floor or door tile: a rotated-square "diamond" footprint, 32×16 (see
+ * ISO_TILE_WIDTH/ISO_TILE_HEIGHT), centered on its projected point. */
+.iso-diamond {
+  position: absolute;
+  width: 32px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.iso-diamond.iso-floor {
+  background: var(--navy-light);
+}
+
+.iso-diamond.iso-door {
+  background: var(--gold-dim);
+}
+
+/* An extruded block (wall or object): three faces (top/left/right) with a fixed
+ * top-face diamond and depth-dependent side parallelograms, built in isometric.ts. */
+.iso-block {
+  position: absolute;
+}
+
+.iso-face {
+  position: absolute;
+}
+
+.iso-face-top {
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 16px;
+}
+
+.iso-block.iso-wall .iso-face {
+  background: var(--navy-dark);
+}
+
+.iso-block.iso-object .iso-face {
+  background: var(--blue);
+}
+
+.iso-face-left {
+  filter: brightness(0.8);
+}
+
+.iso-face-right {
+  filter: brightness(0.58);
+}
+
+.room-player-shadow {
+  position: absolute;
+  width: 20px;
+  height: 8px;
+  transform: translate(-50%, -30%);
+  background: rgb(5 7 13 / 40%);
+  border-radius: 50%;
+}
+
+.room-player {
+  position: absolute;
+  width: 20px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 0 var(--gold)) drop-shadow(0 0 1px var(--gold));
+  transform: translate(-50%, -85%);
+  /* z-index itself is NOT transitioned here — see `usePlayerDepth` in RoomView.tsx,
+   * which has to hold it at the max of the old/new tile depth (not just delay the
+   * switch) because a flat delay is wrong for half of the movement directions: moving
+   * to a deeper tile (grid down/right) needs the new, higher z-index immediately, while
+   * moving to a shallower tile (grid up/left) needs to keep the old, higher z-index
+   * until the glide below actually finishes. */
+  transition:
+    left 120ms linear,
+    top 120ms linear;
+}
+
+.room-hint {
+  /* Bottom-LEFT, not bottom-right: the cross menu (below) anchors bottom-right, and the
+   * hint only shows while facing an object — exactly when the cross menu is also up —
+   * so sharing a corner with it would overlap the two. */
+  position: absolute;
+  inset: auto auto 4px 4px;
+  color: var(--cream);
+  background: var(--navy-dark);
+  padding: 2px 4px;
+  opacity: 0.9;
+}
+
+/* Cross menu (GAME_PLAN §11): DECREE / TALK / ITEM / SWITCH in a diamond. Column width
+ * has to fit the longest label ("DECREE"/"SWITCH", 6 characters) at `.cross-btn`'s
+ * font-size with no padding — 6 × 6px = 36px of text, so the track needs to be at least
+ * that wide or the label overflows into the neighboring cell instead of wrapping (it's
+ * one unbreakable word, so CSS grid won't shrink it to fit on its own). */
+.cross-menu {
+  position: absolute;
+  inset: auto 6px 6px auto;
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  grid-template-rows: repeat(3, 16px);
+  gap: 2px;
+}
+
+.cross-btn {
+  padding: 0;
+  font-size: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cross-btn-decree {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.cross-btn-talk {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.cross-btn-item {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.cross-btn-switch {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.toolbar {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+
+.toolbar-button {
+  flex: 1;
+}
+
+/* Shared overlay panel: Decree/Actions list, World Map, Talk/Item stubs. */
+.menu-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--navy-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  overflow-y: auto;
+}
+
+.menu-overlay-title {
+  margin: 0;
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: normal;
+}
+
+.menu-overlay-close {
+  align-self: flex-start;
+}
+
+.menu-overlay-body {
+  flex: 1;
+  color: var(--cream);
+  line-height: 1.5;
+}
+
+/* World Map menu */
+.map-world {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  background: var(--navy);
+  border: 1px solid var(--gold-dim);
+}
+
+.map-country {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 3px;
+  white-space: nowrap;
+  background: var(--navy-dark);
+  border: 1px solid var(--gold-dim);
+}
+
+.map-country-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--navy-light);
+}
+
+.map-country.is-war .map-country-dot {
+  background: var(--red);
+  animation: map-war-pulse 1.2s ease-in-out infinite;
+}
+
+.map-country.is-owned .map-country-dot {
+  background: var(--gold);
+}
+
+@keyframes map-war-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.map-legend {
+  display: flex;
+  gap: 10px;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.map-country-dot.is-war-dot {
+  background: var(--red);
+}
+
+.map-country-dot.is-owned-dot {
+  background: var(--gold);
+}

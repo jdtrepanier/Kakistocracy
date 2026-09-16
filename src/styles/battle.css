@@ -1,0 +1,208 @@
+/* Tactical battles (GAME_PLAN §7.1): rendered on the same isometric camera as the room
+ * view — see ui/battle/BattleView.tsx's doc comment. `.iso-diamond`/`.iso-block`/
+ * `.iso-face*` (the tile/wall primitives) are shared with room.css; only the
+ * battle-specific bits (clickable tile states, unit tokens) live here. */
+
+.battle-overlay {
+  gap: 4px;
+}
+
+.battle-round {
+  margin: 0;
+  color: var(--cream);
+  opacity: 0.8;
+}
+
+.battle-body {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 0;
+}
+
+.battle-roster {
+  flex: 1 1 80px;
+  min-width: 70px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.battle-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px;
+  background: var(--navy-dark);
+  border: 1px solid transparent;
+}
+
+/* Name + composure bar stacked under each other, next to the swatch, instead of side
+ * by side — a row no longer needs a name column *and* a separate fixed-width bar
+ * column, which is what let the battlefield grow (`BattleView.tsx`'s
+ * `BATTLE_GRID_SCALE`). */
+.battle-roster-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.battle-roster-row.is-current {
+  border-color: var(--gold);
+}
+
+.battle-roster-row.is-defeated {
+  opacity: 0.4;
+}
+
+.battle-roster-swatch {
+  flex: none;
+  width: 12px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--navy-dark);
+  font-size: 5px;
+  object-fit: cover;
+  object-position: top center;
+  image-rendering: pixelated;
+}
+
+/* A US official's roster name is a short, 8-character-max code (`shortName`, e.g.
+ * "LUTNICK") so one line is normally enough; an enemy roster's name is a full
+ * descriptive phrase (`data/battleRosters.ts`'s `nameKey`, e.g. "Guy in a Mackinaw
+ * Jacket") with no short-name layer of its own, so it's allowed to wrap onto a second
+ * line instead of being ellipsized down to one or two unreadable characters (the
+ * layout bug this replaces). */
+.battle-roster-name {
+  min-width: 0;
+  color: var(--cream);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.battle-composure-bar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  background: var(--navy);
+  border: 1px solid var(--black);
+}
+
+.battle-composure-fill {
+  display: block;
+  height: 100%;
+  background: var(--red);
+}
+
+/* The battlefield is projected at full room-camera tile size (`ui/room/isometric.ts`)
+ * and then scaled down to fit — see `BattleView.tsx`'s `BATTLE_GRID_SCALE` comment.
+ * This outer box is the *scaled* footprint, so it's what the roster sidebars actually
+ * flex against; `overflow: hidden` trims the inner box's unscaled corner rounding. */
+.battle-grid-scale {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  align-self: center;
+}
+
+/* The isometric battlefield world: sized to fit the whole projected grid (like
+ * `.room-iso-world`) but never panned — a tactical battle shows the entire field at
+ * once, so there's no camera-follow here. Scaled down within `.battle-grid-scale`
+ * above; drawn at its natural size so the projection math (`isoGridBounds`) and every
+ * tile's `left`/`top` stay simple round numbers. The `0.85` here must match
+ * `BattleView.tsx`'s `BATTLE_GRID_SCALE` by hand — CSS can't reference a JS constant
+ * (same limitation as `ROOM_MOVE_TRANSITION_MS` in `ui/room/isometric.ts`). */
+.battle-grid-iso {
+  position: relative;
+  flex: none;
+  transform: scale(0.85);
+  transform-origin: top left;
+}
+
+/* A floor tile is a plain `.iso-diamond.iso-floor` (room.css) turned into a button so
+ * it can be clicked; these rules only strip the browser's default button chrome and
+ * add the reachable/attackable highlight states. */
+.iso-diamond.battle-iso-tile {
+  appearance: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  cursor: default;
+}
+
+.iso-diamond.battle-iso-tile.is-reachable {
+  filter: brightness(1.4);
+  cursor: pointer;
+}
+
+.iso-diamond.battle-iso-tile.is-attackable {
+  background: var(--orange);
+  cursor: pointer;
+}
+
+.iso-diamond.battle-iso-tile:disabled {
+  cursor: default;
+}
+
+/* `.iso-block.iso-wall`'s default fill (room.css) is `--navy-dark` — the same color as
+ * this overlay's own background, so an interior obstacle (not sitting against a
+ * differently-colored floor edge, unlike most room walls) reads as a hole punched in
+ * the field instead of a raised block. Give battle walls a lighter, sandbag-like fill
+ * so both the border and the obstacles are legible against the dark backdrop. */
+.battle-grid-iso .iso-block.iso-wall .iso-face {
+  background: var(--gold-dim);
+}
+
+/* A unit's token: the same "colored square, bottom-anchored to its tile" placeholder
+ * as the room camera's player marker (`.room-player`). Used to carry a side/current
+ * outline (`.is-us`/`.is-enemy`/`.is-current` box-shadows) on every token at once, which
+ * read as a distracting rectangle around each sprite rather than a helpful cue — the
+ * roster sidebar's gold border and the turn banner text already say whose turn it is,
+ * so the on-board outline was dropped. The modifier classes are still applied in
+ * `BattleView.tsx` (harmless without matching rules here) in case a lighter touch —
+ * e.g. only the *current* unit — is wanted later. */
+.battle-unit-iso {
+  position: absolute;
+  width: 18px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--navy-dark);
+  font-size: 6px;
+  box-sizing: border-box;
+  pointer-events: none;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transform: translate(-50%, -85%);
+}
+
+.battle-turn-banner {
+  margin: 0;
+  color: var(--gold);
+}
+
+.battle-log-line {
+  margin: 0;
+  color: var(--cream);
+  opacity: 0.85;
+  min-height: 1em;
+}
+
+.battle-actions {
+  display: flex;
+  justify-content: flex-end;
+}
