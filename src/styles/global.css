@@ -93,16 +93,24 @@ canvas {
   outline: none;
 }
 
-.lang-toggle {
+/* Both sit on top of the news ticker itself (bottom-right corner of the stage), not above
+ * it — they used to float just above the ticker, which put them directly over the
+ * toolbar's rightmost button on the room screen. `z-index` is needed because the ticker
+ * (a later sibling in App.tsx, painted on top by default) would otherwise cover them. */
+.lang-toggle,
+.mute-toggle {
   position: absolute;
-  right: 6px;
-  bottom: calc(var(--ticker-height) + 6px);
+  bottom: 0;
+  z-index: 1;
+  padding: 1px 3px;
+}
+
+.lang-toggle {
+  right: 0;
 }
 
 .mute-toggle {
-  position: absolute;
-  right: 40px;
-  bottom: calc(var(--ticker-height) + 6px);
+  right: 22px;
 }
 
 @media (prefers-reduced-motion: reduce) {

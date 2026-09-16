@@ -3,8 +3,8 @@ import { ACTIONS, getAction } from './actions';
 import { CHARACTERS } from './characters';
 
 describe('ACTIONS', () => {
-  it('has 37 actions with unique ids', () => {
-    expect(ACTIONS).toHaveLength(37);
+  it('has 38 actions with unique ids', () => {
+    expect(ACTIONS).toHaveLength(38);
     expect(new Set(ACTIONS.map((a) => a.id)).size).toBe(ACTIONS.length);
   });
 
@@ -46,6 +46,7 @@ describe('ACTIONS', () => {
       'be_best',
       'rally',
       'read_briefing',
+      'senate_trial',
       'summit',
       'truth_post_3am',
     ]);
@@ -59,6 +60,12 @@ describe('ACTIONS', () => {
       then: [{ kind: 'flag', set: 'dogeCutEnergy' }],
       else: [],
     });
+  });
+
+  it('gates the Senate trial behind Congress actually being lost', () => {
+    const senateTrial = getAction('senate_trial');
+    expect(senateTrial.requires?.flags).toEqual(['congressLost']);
+    expect(senateTrial.room).toBe('capitol');
   });
 
   it('wires Declare War and Buy a Country to the World Map menu', () => {

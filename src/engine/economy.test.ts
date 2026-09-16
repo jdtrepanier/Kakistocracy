@@ -177,6 +177,40 @@ describe('tickMonth: Congress and Impeachment', () => {
     const next = tickMonth(state);
     expect(next.lowHappinessStreak).toBe(0);
   });
+
+  it('flags congressLost the month Congress is actually lost, gating the Senate trial', () => {
+    const base = createInitialState(1);
+    const state: GameState = {
+      ...base,
+      date: { ...BALANCE.calendar.midterms },
+      stats: { ...base.stats, happiness: 30 },
+    };
+    const next = tickMonth(state);
+    expect(next.flags).toContain('congressLost');
+  });
+
+  it('does not add the congressLost flag when Congress is kept', () => {
+    const base = createInitialState(1);
+    const state: GameState = {
+      ...base,
+      date: { ...BALANCE.calendar.midterms },
+      stats: { ...base.stats, happiness: 80 },
+    };
+    const next = tickMonth(state);
+    expect(next.flags).not.toContain('congressLost');
+  });
+
+  it('never duplicates the congressLost flag on later months', () => {
+    const base = createInitialState(1);
+    const state: GameState = {
+      ...base,
+      congressLost: true,
+      midtermsChecked: true,
+      flags: ['congressLost'],
+    };
+    const next = tickMonth(state);
+    expect(next.flags.filter((f) => f === 'congressLost')).toHaveLength(1);
+  });
 });
 
 describe('tickMonth: survival and game over', () => {

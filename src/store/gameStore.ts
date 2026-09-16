@@ -4,7 +4,7 @@ import { getAction } from '@/data/actions';
 import { BATTLEFIELD, ENEMY_SPAWN_POSITIONS, US_SPAWN_POSITIONS } from '@/data/battlefield';
 import { getBattleRoster, US_BATTLE_UNITS } from '@/data/battleRosters';
 import { DEFAULT_DIFFICULTY, getBalance, type Balance, type DifficultyId } from '@/data/balance';
-import { pickRandomCountry } from '@/data/countries';
+import { COUNTRIES } from '@/data/countries';
 import { getRoomLayout, ROOM_LAYOUTS } from '@/data/roomLayouts';
 import { getShowdownForAction } from '@/data/showdowns';
 import {
@@ -22,7 +22,6 @@ import {
 import { grantBonusAction, tickMonth } from '@/engine/economy';
 import { rollMonthlyEvent, type EventOutcome } from '@/engine/events';
 import { moveWithin, type Direction, type GridPosition } from '@/engine/movement';
-import { createRng } from '@/engine/rng';
 import { resolveAction, resolveBattleAction, type ActionResult } from '@/engine/resolve';
 import { isShowdownComplete, totalShowdownModifier } from '@/engine/showdown';
 import { createInitialState } from '@/engine/state';
@@ -62,10 +61,11 @@ export const SWITCHABLE_CHARACTERS: readonly CharacterId[] = [
 /**
  * Phase 3 resolution flow (GAME_PLAN §7), extended by §7.1's tactical battles: an action
  * goes through an optional showdown, a preview the player confirms, then — for a
- * battle-gated action like `declare_war` — a tactical battle instead of an instant roll,
- * and finally a result reveal. `null` means no action is currently being resolved.
+ * battle-gated action like `declare_war` — a target-selection screen and a tactical
+ * battle instead of an instant roll, and finally a result reveal. `null` means no action
+ * is currently being resolved.
  */
-export type ResolutionPhase = 'showdown' | 'preview' | 'battle' | 'result';
+export type ResolutionPhase = 'showdown' | 'preview' | 'selectCountry' | 'battle' | 'result';
 
 export interface ResolutionState {
   readonly actionId: string;
@@ -174,9 +174,16 @@ export interface GameStore {
   /** Records the response chosen for the current showdown round. */
   chooseShowdownOption: (choiceIndex: number) => void;
   /** Confirms the preview: rolls the action, or — for a battle-gated action with a
-   * country left to fight — starts the tactical battle instead (GAME_PLAN §7.1). */
+   * country left to fight — moves to target selection instead (GAME_PLAN §7.1). */
   confirmPreview: () => void;
-  /** Backs out of a showdown or preview before the roll happens. Spends nothing. */
+  /** Picks `country` as the target for the battle-gated action currently being resolved
+   * (only valid during the 'selectCountry' phase) and starts the tactical battle against
+   * it. A no-op for anything not currently eligible, as a last-line sanity check to match
+   * `country.warTarget && !atWarWith.includes(country)` — the UI only offers eligible
+   * countries as buttons in the first place. */
+  selectBattleCountry: (country: CountryId) => void;
+  /** Backs out of a showdown, preview, or target selection before the roll happens.
+   * Spends nothing. */
   cancelResolution: () => void;
   /** Moves the current battle unit, if it's a living US unit and the tile is reachable. */
   battleMove: (pos: GridPosition) => void;
@@ -563,26 +570,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const action = getAction(resolution.actionId);
 
     if (actionHasBattle(action.id)) {
-      const rng = createRng(game.rngState);
-      const country = pickRandomCountry(game.atWarWith, (c) => c.warTarget, rng);
-      if (country) {
-        const usSpawns = SWITCHABLE_CHARACTERS.map((id, i) => ({
-          template: US_BATTLE_UNITS[id],
-          pos: US_SPAWN_POSITIONS[i] as GridPosition,
-        }));
-        const enemySpawns = getBattleRoster(country).map((template, i) => ({
-          template,
-          pos: ENEMY_SPAWN_POSITIONS[i] as GridPosition,
-        }));
-        const battle = createBattle(BATTLEFIELD, usSpawns, enemySpawns, rng.state);
-        set(
-          settleBattle(
-            { ...resolution, phase: 'battle', battleCountry: country },
-            battle,
-            game,
-            balance,
-          ),
-        );
+      const eligible = COUNTRIES.some((c) => c.warTarget && !game.atWarWith.includes(c.id));
+      if (eligible) {
+        // Target-selection screen (previously an automatic random pick) — the player
+        // chooses who to fight next; `selectBattleCountry` actually starts the battle.
+        set({ resolution: { ...resolution, phase: 'selectCountry' } });
         return;
       }
       // Every eligible country has already been hit — nobody left to fight. Fall
@@ -594,6 +586,33 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const { state, result } = resolveAction(game, action, balance, modifier);
 
     set({ resolution: { ...resolution, phase: 'result', result, nextGame: state } });
+  },
+
+  selectBattleCountry: (country) => {
+    const { resolution, game, difficulty } = get();
+    if (!resolution || resolution.phase !== 'selectCountry') return;
+
+    const target = COUNTRIES.find((c) => c.id === country);
+    if (!target?.warTarget || game.atWarWith.includes(country)) return;
+
+    const balance = getBalance(difficulty);
+    const usSpawns = SWITCHABLE_CHARACTERS.map((id, i) => ({
+      template: US_BATTLE_UNITS[id],
+      pos: US_SPAWN_POSITIONS[i] as GridPosition,
+    }));
+    const enemySpawns = getBattleRoster(country).map((template, i) => ({
+      template,
+      pos: ENEMY_SPAWN_POSITIONS[i] as GridPosition,
+    }));
+    const battle = createBattle(BATTLEFIELD, usSpawns, enemySpawns, game.rngState);
+    set(
+      settleBattle(
+        { ...resolution, phase: 'battle', battleCountry: country },
+        battle,
+        game,
+        balance,
+      ),
+    );
   },
 
   cancelResolution: () => {

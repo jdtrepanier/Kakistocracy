@@ -1,9 +1,11 @@
 import type { ShowdownDef } from '@/engine/showdown';
 
 /**
- * Phase 3 showdowns (GAME_PLAN §7/§17: "2 showdowns — Fed, press conference"). Universal
- * for now — GAME_PLAN §7's officer-specific responses ("Lutnick can offer a Gold Card")
- * are a later-phase refinement once more of the cabinet has room-bound actions.
+ * All 6 showdowns (GAME_PLAN §17 Phase 5's target): the original Phase 3 pair (Fed rate
+ * cut, press conference), then Buy a Country and Pass the Big Beautiful Bill, then the two
+ * previously-deferred ones — Fire the Fed Chair, and the Impeachment Senate trial. All
+ * universal for now — GAME_PLAN §7's officer-specific responses ("Lutnick can offer a Gold
+ * Card") are a later-phase refinement once more of the cabinet has room-bound actions.
  */
 export const SHOWDOWNS: readonly ShowdownDef[] = [
   {
@@ -122,6 +124,66 @@ export const SHOWDOWNS: readonly ShowdownDef[] = [
           { labelKey: 'showdown.bill.round3.choiceA', modifier: 5 },
           { labelKey: 'showdown.bill.round3.choiceB', modifier: 15 },
           { labelKey: 'showdown.bill.round3.choiceC', modifier: -20 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'fedFiring',
+    actionId: 'fire_fed_chair',
+    rounds: [
+      {
+        promptKey: 'showdown.fedFiring.round1.prompt',
+        choices: [
+          { labelKey: 'showdown.fedFiring.round1.choiceA', modifier: 10 },
+          { labelKey: 'showdown.fedFiring.round1.choiceB', modifier: -5 },
+          { labelKey: 'showdown.fedFiring.round1.choiceC', modifier: -15 },
+        ],
+      },
+      {
+        promptKey: 'showdown.fedFiring.round2.prompt',
+        choices: [
+          { labelKey: 'showdown.fedFiring.round2.choiceA', modifier: 15 },
+          { labelKey: 'showdown.fedFiring.round2.choiceB', modifier: 0 },
+          { labelKey: 'showdown.fedFiring.round2.choiceC', modifier: -10 },
+        ],
+      },
+      {
+        promptKey: 'showdown.fedFiring.round3.prompt',
+        choices: [
+          { labelKey: 'showdown.fedFiring.round3.choiceA', modifier: 5 },
+          { labelKey: 'showdown.fedFiring.round3.choiceB', modifier: 10 },
+          { labelKey: 'showdown.fedFiring.round3.choiceC', modifier: -20 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'impeachment',
+    actionId: 'senate_trial',
+    rounds: [
+      {
+        promptKey: 'showdown.impeachment.round1.prompt',
+        choices: [
+          { labelKey: 'showdown.impeachment.round1.choiceA', modifier: 10 },
+          { labelKey: 'showdown.impeachment.round1.choiceB', modifier: -5 },
+          { labelKey: 'showdown.impeachment.round1.choiceC', modifier: -15 },
+        ],
+      },
+      {
+        promptKey: 'showdown.impeachment.round2.prompt',
+        choices: [
+          { labelKey: 'showdown.impeachment.round2.choiceA', modifier: 15 },
+          { labelKey: 'showdown.impeachment.round2.choiceB', modifier: -10 },
+          { labelKey: 'showdown.impeachment.round2.choiceC', modifier: 0 },
+        ],
+      },
+      {
+        promptKey: 'showdown.impeachment.round3.prompt',
+        choices: [
+          { labelKey: 'showdown.impeachment.round3.choiceA', modifier: 20 },
+          { labelKey: 'showdown.impeachment.round3.choiceB', modifier: -10 },
+          { labelKey: 'showdown.impeachment.round3.choiceC', modifier: 5 },
         ],
       },
     ],

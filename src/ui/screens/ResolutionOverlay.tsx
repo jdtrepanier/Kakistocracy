@@ -13,6 +13,7 @@ import { BattleView } from '../battle/BattleView';
 import { formatStatDelta, formatStatValue, REPORT_STAT_ORDER, statLabelKey } from '../format';
 import { useT } from '../useT';
 import type { TFunction } from '../useT';
+import { SelectCountryScreen } from './SelectCountryScreen';
 
 /** Felt inflation stays hidden here too (GAME_PLAN §4), same as the month-end report. */
 const HIDDEN_PREVIEW_STATS = new Set<StatKey>(['feltInflation']);
@@ -142,9 +143,10 @@ export function ResolutionOverlay() {
         )}
         <EffectPreviewList summary={summary} t={t} />
         {summary.hasChance && <p className="preview-note">{t('resolution.hasChanceNote')}</p>}
-        {summary.hasRandomCountry && (
+        {summary.hasRandomCountry && !battleGated && (
           <p className="preview-note">{t('resolution.randomCountryNote')}</p>
         )}
+        {battleGated && <p className="preview-note">{t('battle.selectCountryNote')}</p>}
         <div className="preview-buttons">
           <button
             type="button"
@@ -169,6 +171,10 @@ export function ResolutionOverlay() {
         </div>
       </div>
     );
+  }
+
+  if (resolution.phase === 'selectCountry') {
+    return <SelectCountryScreen />;
   }
 
   if (resolution.phase === 'battle') {

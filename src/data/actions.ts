@@ -600,6 +600,32 @@ export const ACTIONS: readonly ActionDef[] = [
     headlines: 70,
   },
   {
+    id: 'senate_trial',
+    nameKey: 'action.senateTrial.name',
+    // The Impeachment Senate-trial showdown (GAME_PLAN §17 Phase 5, previously deferred):
+    // only on the table once Congress is actually lost (`congressLost`, flagged by
+    // `engine/economy.ts`'s `tickMonth` the month it happens), and there's no "reset the
+    // streak" effect kind — success just pushes Happiness back over the impeachment
+    // threshold for the month, which is what actually breaks `lowHappinessStreak`
+    // (§5/`checkEnding`); failure pushes it further down instead, same DSL as everything
+    // else, no new engine mechanic needed.
+    actors: ['trump'],
+    room: 'capitol',
+    requires: { flags: ['congressLost'] },
+    cost: { ea: 2 },
+    limit: 'oncePerMonth',
+    baseSuccess: 45,
+    onSuccess: [
+      { kind: 'delta', stat: 'happiness', amount: 15 },
+      { kind: 'delta', stat: 'iq', amount: -3 },
+    ],
+    onFail: [
+      { kind: 'delta', stat: 'happiness', amount: -10 },
+      { kind: 'delta', stat: 'iq', amount: -2 },
+    ],
+    headlines: 65,
+  },
+  {
     id: 'executive_order_spree',
     nameKey: 'action.executiveOrderSpree.name',
     // "+2 EA next month" (§9 row 27) is a real mechanic — see the `executiveOrderBonus`

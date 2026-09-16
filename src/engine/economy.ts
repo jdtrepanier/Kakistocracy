@@ -135,7 +135,13 @@ export function tickMonth(state: GameState, balance: Balance = BALANCE): GameSta
 
   const congress = updateCongress(state, stats, balance);
   const date = addMonths(state.date, 1);
-  const ea = resolveActionsLeft(state.flags, balance);
+  // Set once, the month Congress is actually lost — gates `senate_trial` (data/actions.ts)
+  // and its Impeachment showdown behind "there's actually a trial to survive."
+  const flagsWithCongress =
+    congress.congressLost && !state.flags.includes('congressLost')
+      ? [...state.flags, 'congressLost']
+      : state.flags;
+  const ea = resolveActionsLeft(flagsWithCongress, balance);
 
   const nextState: GameState = {
     ...state,

@@ -17,12 +17,14 @@ describe('SHOWDOWNS', () => {
     }
   });
 
-  it('covers all four showdown-gated actions (GAME_PLAN §17 Phase 3/5)', () => {
+  it('covers all six showdown-gated actions (GAME_PLAN §17 Phase 3/5)', () => {
     expect(SHOWDOWNS.map((s) => s.actionId).sort()).toEqual([
       'buy_country',
+      'fire_fed_chair',
       'lower_interest_rates',
       'pass_big_beautiful_bill',
       'press_conference',
+      'senate_trial',
     ]);
   });
 });

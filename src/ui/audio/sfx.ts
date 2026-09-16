@@ -93,7 +93,14 @@ export function playSfx(id: SfxId): void {
 
 /** Starts the quiet two-note drone under ordinary room play (GAME_PLAN §16's "tense loop"
  * idea, toned down to a constant ambient hum for this placeholder pass — reacting to
- * near-threshold stats is a later refinement). A no-op if already running or muted. */
+ * near-threshold stats is a later refinement). A no-op if already running or muted.
+ *
+ * Not currently called anywhere: `App.tsx` used to start/stop this automatically on every
+ * room-screen mount, but a constant background drone with no way to turn it off short of
+ * muting all sound (SFX included) read as "background sound non-stop" in practice — a
+ * real piece of user feedback, not a hypothetical. Left here, still fully working, for
+ * whenever real ambient music (or a dedicated music toggle, separate from the SFX mute)
+ * replaces it, rather than deleted outright. */
 export function startAmbientHum(): void {
   if (muted || ambient) return;
   const context = getContext();

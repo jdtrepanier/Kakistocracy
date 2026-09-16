@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useGameStore } from './store/gameStore';
 import { STAGE_HEIGHT, STAGE_WIDTH } from './ui/constants';
 import { MuteToggle } from './ui/audio/MuteToggle';
-import { startAmbientHum, stopAmbientHum } from './ui/audio/sfx';
 import { Hud } from './ui/hud/Hud';
 import { Ticker } from './ui/hud/Ticker';
 import { LangToggle } from './ui/menus/LangToggle';
@@ -31,22 +30,10 @@ function CurrentScreen() {
 export function App() {
   const scale = useStageScale();
   const lang = useGameStore((s) => s.lang);
-  const screen = useGameStore((s) => s.screen);
 
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
-
-  // The ambient hum only fits the room/battle screen — off everywhere else (title,
-  // month report, ending), and always stopped on unmount so it never outlives the stage.
-  useEffect(() => {
-    if (screen === 'game') {
-      startAmbientHum();
-    } else {
-      stopAmbientHum();
-    }
-    return () => stopAmbientHum();
-  }, [screen]);
 
   return (
     <div className="viewport">

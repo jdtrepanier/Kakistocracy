@@ -3,14 +3,16 @@ import type { Rng } from '@/engine/rng';
 import type { MessageKey } from '@/i18n/en';
 
 /**
- * World Map menu targets (GAME_PLAN §10). `declare_war` and `buy_country` don't ask the
- * player to pick a target — there's no target-selection UI in the plan — they pick a
- * random eligible country from here via the seeded RNG when they resolve. Declaring war
- * additionally plays out as a tactical battle (GAME_PLAN §7.1, `engine/battle.ts`)
- * against that country's roster (`data/battleRosters.ts`) before the target actually
- * sticks. The original four keep clear of any live real-world conflict (GAME_PLAN
- * §19.A); Iran/Venezuela/Russia are war-only and use invented, non-real-person rosters
- * for the same reason (see `data/battleRosters.ts`'s doc comment).
+ * World Map menu targets (GAME_PLAN §10). `buy_country` still picks a random eligible
+ * country via the seeded RNG when it resolves. `declare_war` used to as well, but now
+ * asks the player to pick from the eligible list first (`store/gameStore.ts`'s
+ * `selectBattleCountry`, rendered by `ui/screens/SelectCountryScreen.tsx`) — real user
+ * feedback ("you should be able to select your country to attack") — and only then
+ * plays out as a tactical battle (GAME_PLAN §7.1, `engine/battle.ts`) against that
+ * country's roster (`data/battleRosters.ts`). The original four keep clear of any live
+ * real-world conflict (GAME_PLAN §19.A); Iran/Venezuela/Russia are war-only and use
+ * invented, non-real-person rosters for the same reason (see `data/battleRosters.ts`'s
+ * doc comment).
  */
 export interface CountryDef {
   readonly id: CountryId;
@@ -19,7 +21,13 @@ export interface CountryDef {
   readonly warTarget: boolean;
   /** Eligible as a `buy_country` target. */
   readonly purchasable: boolean;
-  /** Placeholder marker position on the World Map screen, percent of the map box. */
+  /**
+   * Marker position on the World Map / target-select screens, percent of the map box.
+   * Tuned by eye against the real world-map background image
+   * (`public/assets/maps/world-map.png`, `styles/room.css`'s `.map-world`) — close to
+   * each country's actual location on that specific image crop, not surveyed
+   * coordinates, which is plenty for a marker meant to sit "roughly on the country."
+   */
   readonly mapX: number;
   readonly mapY: number;
 }
@@ -30,49 +38,49 @@ export const COUNTRIES: readonly CountryDef[] = [
     nameKey: 'country.canada',
     warTarget: true,
     purchasable: true,
-    mapX: 22,
-    mapY: 20,
+    mapX: 18,
+    mapY: 30,
   },
   {
     id: 'greenland',
     nameKey: 'country.greenland',
     warTarget: true,
     purchasable: true,
-    mapX: 46,
-    mapY: 8,
+    mapX: 38,
+    mapY: 14,
   },
   {
     id: 'panama',
     nameKey: 'country.panama',
     warTarget: true,
     purchasable: true,
-    mapX: 24,
-    mapY: 58,
+    mapX: 23,
+    mapY: 68,
   },
   {
     id: 'mexico',
     nameKey: 'country.mexico',
     warTarget: true,
     purchasable: false,
-    mapX: 18,
-    mapY: 42,
+    mapX: 21,
+    mapY: 60,
   },
-  { id: 'iran', nameKey: 'country.iran', warTarget: true, purchasable: false, mapX: 66, mapY: 38 },
+  { id: 'iran', nameKey: 'country.iran', warTarget: true, purchasable: false, mapX: 71, mapY: 45 },
   {
     id: 'venezuela',
     nameKey: 'country.venezuela',
     warTarget: true,
     purchasable: false,
-    mapX: 28,
-    mapY: 66,
+    mapX: 25,
+    mapY: 74,
   },
   {
     id: 'russia',
     nameKey: 'country.russia',
     warTarget: true,
     purchasable: false,
-    mapX: 72,
-    mapY: 12,
+    mapX: 78,
+    mapY: 24,
   },
 ];
 

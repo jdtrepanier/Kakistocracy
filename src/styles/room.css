@@ -157,23 +157,22 @@
   opacity: 0.9;
 }
 
-/* Cross menu (GAME_PLAN §11): DECREE / TALK / ITEM / SWITCH in a diamond. Column width
- * has to fit the longest label ("DECREE"/"SWITCH", 6 characters) at `.cross-btn`'s
- * font-size with no padding — 6 × 6px = 36px of text, so the track needs to be at least
- * that wide or the label overflows into the neighboring cell instead of wrapping (it's
- * one unbreakable word, so CSS grid won't shrink it to fit on its own). */
+/* Cross menu (GAME_PLAN §11): DECREE / TALK / ITEM / SWITCH in a diamond, one icon glyph
+ * per button (see CrossMenu.tsx) — small square cells, no label-width math needed now
+ * that there's no text to overflow. */
 .cross-menu {
   position: absolute;
   inset: auto 6px 6px auto;
   display: grid;
-  grid-template-columns: repeat(3, 40px);
+  grid-template-columns: repeat(3, 18px);
   grid-template-rows: repeat(3, 16px);
   gap: 2px;
 }
 
 .cross-btn {
   padding: 0;
-  font-size: 6px;
+  font-size: 9px;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -239,12 +238,16 @@
   line-height: 1.5;
 }
 
-/* World Map menu */
+/* World Map menu, and the target-select screen (SelectCountryScreen.tsx) that reuses it.
+ * `background-size: 100% 100%` (stretch, not `cover`/`contain`) deliberately ignores the
+ * source image's own aspect ratio: `data/countries.ts`'s `mapX`/`mapY` are plain percent
+ * positions of this box, and stretching is what keeps "percent across" meaning the same
+ * horizontal position on the image regardless of how tall the flex-sized box ends up. */
 .map-world {
   position: relative;
   flex: 1;
   min-height: 120px;
-  background: var(--navy);
+  background: var(--navy) url('/assets/maps/world-map.png') center / 100% 100% no-repeat;
   border: 1px solid var(--gold-dim);
 }
 
@@ -265,6 +268,21 @@
   height: 6px;
   flex: none;
   background: var(--navy-light);
+}
+
+/* Modifier for SelectCountryScreen.tsx, where `.map-country` is a real `<button>` instead
+ * of the World Map's plain `<span>` — resets the button UA defaults `.map-country`'s own
+ * rules don't already cover, and adds a hover/focus affordance. */
+.map-country-button {
+  font: inherit;
+  color: var(--cream);
+  cursor: pointer;
+}
+
+.map-country-button:hover,
+.map-country-button:focus-visible {
+  background: var(--navy-light);
+  outline: 1px solid var(--gold);
 }
 
 .map-country.is-war .map-country-dot {
