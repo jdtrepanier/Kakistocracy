@@ -130,6 +130,12 @@ export interface GameStore {
   overlay: OverlayId | null;
   /** The action currently going through showdown/preview/result, if any. */
   resolution: ResolutionState | null;
+  /** Bumped by `triggerShake` every time something impactful happens (a failed action, a
+   * landed battle hit) — GAME_PLAN §16/§17's "juice." A counter rather than a boolean so
+   * `App.tsx` can restart the shake animation even if it's retriggered before the last
+   * one finished (a boolean flip back to the same value wouldn't re-fire a CSS
+   * animation). Pure session/UI flourish — not part of `GameState`, never saved. */
+  shakeSeq: number;
 
   /** Which room Melania is hiding in this month (GAME_PLAN §8's hide-and-seek):
    * walking into this room grants +1 Executive Action, once per month. Re-rolled every
@@ -196,6 +202,10 @@ export interface GameStore {
   battleRunEnemyTurn: () => void;
   /** Applies the rolled (or battled) result and returns to the room (or the ending screen). */
   continueResolution: () => void;
+  /** Bumps `shakeSeq`, asking `App.tsx` to play a brief screen-shake. Exposed as its own
+   * action (rather than folded silently into the moments that call it) so any future
+   * juice — a bad random event, an ending reveal — can reuse the exact same trigger. */
+  triggerShake: () => void;
 }
 
 const LANG_STORAGE_KEY = 'maga.lang';
@@ -394,6 +404,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   monthReport: null,
   lastEventNameKey: null,
   hasSave: hasSavedGame(),
+  shakeSeq: 0,
 
   newGame: (seed = randomSeed()) => {
     clearSavedGame();
@@ -622,12 +633,22 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   battleMove: (pos) => {
-    const { resolution } = get();
+    const { resolution, game, difficulty } = get();
     const battle = resolution?.battle;
     if (!resolution || resolution.phase !== 'battle' || !battle) return;
     const unit = currentUnit(battle);
     if (unit.side !== 'us') return;
-    set({ resolution: { ...resolution, battle: moveUnit(battle, unit.id, pos) } });
+    const moved = moveUnit(battle, unit.id, pos);
+
+    // Auto-end the turn once a move actually happens and leaves the unit with nobody
+    // to attack — user feedback: having to click End Turn every time a move can't
+    // reach an enemy was pure friction. Attacking itself stays a manual click
+    // (`battleAttack`, below) — who to hit is a real choice, never auto-picked.
+    if (moved.movedThisTurn && !battle.movedThisTurn && targetsInRange(moved, unit.id).length === 0) {
+      set(settleBattle(resolution, endTurn(moved), game, getBalance(difficulty)));
+      return;
+    }
+    set({ resolution: { ...resolution, battle: moved } });
   },
 
   battleAttack: (targetId) => {
@@ -639,6 +660,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     if (!targetsInRange(battle, unit.id).some((t) => t.id === targetId)) return;
 
     const afterAttack = attack(battle, unit.id, targetId).state;
+    get().triggerShake();
     set(settleBattle(resolution, endTurn(afterAttack), game, getBalance(difficulty)));
   },
 
@@ -657,8 +679,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     if (!resolution || resolution.phase !== 'battle' || !battle) return;
     const unit = currentUnit(battle);
     if (unit.side !== 'enemy') return;
-    const nextBattle = endTurn(enemyTakeTurn(battle, unit.id));
-    set(settleBattle(resolution, nextBattle, game, getBalance(difficulty)));
+    const afterTurn = enemyTakeTurn(battle, unit.id);
+    // `enemyTakeTurn` only actually attacks (appending a log entry) if it ended its move
+    // within range of a US unit — sometimes it just repositions, which isn't a hit.
+    if (afterTurn.log.length > battle.log.length) get().triggerShake();
+    set(settleBattle(resolution, endTurn(afterTurn), game, getBalance(difficulty)));
   },
 
   continueResolution: () => {
@@ -705,4 +730,6 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       hasSave,
     });
   },
+
+  triggerShake: () => set((s) => ({ shakeSeq: s.shakeSeq + 1 })),
 }));

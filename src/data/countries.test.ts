@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Rng } from '@/engine/rng';
-import { COUNTRIES, getCountry, pickRandomCountry } from './countries';
+import { COUNTRIES, US_COLOR, getCountry, pickRandomCountry } from './countries';
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 /** A fake RNG whose pick() always returns the first candidate, for deterministic tests. */
 function firstPickRng(): Rng {
@@ -30,6 +32,19 @@ describe('COUNTRIES', () => {
   it('has at least one war target and one purchasable country', () => {
     expect(COUNTRIES.some((c) => c.warTarget)).toBe(true);
     expect(COUNTRIES.some((c) => c.purchasable)).toBe(true);
+  });
+
+  it('gives every country a valid hex color, distinct from every other country and from US_COLOR', () => {
+    const colors = COUNTRIES.map((c) => c.color);
+    for (const color of colors) {
+      expect(color).toMatch(HEX_COLOR);
+    }
+    expect(new Set(colors).size).toBe(colors.length);
+    expect(colors).not.toContain(US_COLOR);
+  });
+
+  it('gives US_COLOR a valid hex color too', () => {
+    expect(US_COLOR).toMatch(HEX_COLOR);
   });
 });
 

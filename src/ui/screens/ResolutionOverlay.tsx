@@ -10,9 +10,10 @@ import type { StatKey } from '@/engine/types';
 import { useGameStore } from '@/store/gameStore';
 import { playSfx } from '../audio/sfx';
 import { BattleView } from '../battle/BattleView';
-import { formatStatDelta, formatStatValue, REPORT_STAT_ORDER, statLabelKey } from '../format';
+import { formatStatDelta, statLabelKey } from '../format';
 import { useT } from '../useT';
 import type { TFunction } from '../useT';
+import { ReportStatsTable } from './ReportStatsTable';
 import { SelectCountryScreen } from './SelectCountryScreen';
 
 /** Felt inflation stays hidden here too (GAME_PLAN §4), same as the month-end report. */
@@ -67,6 +68,7 @@ export function ResolutionOverlay() {
   const confirmPreview = useGameStore((s) => s.confirmPreview);
   const cancelResolution = useGameStore((s) => s.cancelResolution);
   const continueResolution = useGameStore((s) => s.continueResolution);
+  const triggerShake = useGameStore((s) => s.triggerShake);
 
   const phase = resolution?.phase ?? null;
   const [revealed, setRevealed] = useState(false);
@@ -76,10 +78,14 @@ export function ResolutionOverlay() {
     setRevealed(false);
     const timer = setTimeout(() => {
       setRevealed(true);
-      playSfx(resolution?.result?.success ? 'success' : 'fail');
+      const success = resolution?.result?.success ?? false;
+      playSfx(success ? 'success' : 'fail');
+      // Juice (GAME_PLAN §16/§17): a failed action gets a screen shake on top of its own
+      // "fail" jingle — a win never does, so the shake reads as "that went badly."
+      if (!success) triggerShake();
     }, 900);
     return () => clearTimeout(timer);
-  }, [phase, resolution?.actionId, resolution?.result?.success]);
+  }, [phase, resolution?.actionId, resolution?.result?.success, triggerShake]);
 
   if (!resolution) return null;
 
@@ -205,19 +211,7 @@ export function ResolutionOverlay() {
         <p className="resolution-headline">
           {t('resolution.headline', { action: t(action.nameKey), n: result.headlines })}
         </p>
-        <table className="report-stats">
-          <tbody>
-            {REPORT_STAT_ORDER.map((stat) => (
-              <tr key={stat}>
-                <th scope="row">{t(statLabelKey(stat))}</th>
-                <td>{formatStatValue(stat, nextGame.stats[stat])}</td>
-                <td className="report-delta">
-                  {formatStatDelta(stat, nextGame.stats[stat] - statsBefore[stat])}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ReportStatsTable statsBefore={statsBefore} statsAfter={nextGame.stats} />
         <button
           type="button"
           className="pixel-button report-continue"

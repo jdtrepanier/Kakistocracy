@@ -10,23 +10,23 @@ import { getCharacter } from './characters';
  *   "active" in the room.
  * - `BATTLE_ROSTERS`: each war-eligible country's opposing lineup.
  *
- * Canada's roster is the six people named when this feature was designed — five real
- * Canadian officials (satirizing their public "elbows up" / tariff-fight posture, same
- * spirit as the rest of the game's real-name cast, GAME_PLAN §14) plus one deliberately
- * fictional wildcard. Greenland's is generic (polar bears, not people) for the same
+ * Canada's roster started as the six people named when this feature was designed — five
+ * real Canadian officials (satirizing their public "elbows up" / tariff-fight posture,
+ * same spirit as the rest of the game's real-name cast, GAME_PLAN §14) plus one
+ * deliberately fictional wildcard — then grew to seven when Jagmeet Singh joined
+ * alongside a full re-crop of Carney/Trudeau/LeBlanc's own art from a newer reference
+ * sheet (`public/assets/sprites/source/`, user-supplied; the fictional wildcard's sprite
+ * is untouched). `data/battlefield.ts`'s `ENEMY_SPAWN_POSITIONS` was extended to 7 slots
+ * to match. Greenland's is generic (polar bears, not people) for the same
  * reason it was picked as a launch target: no live real-world conflict, easy to laugh
  * at. Panama and Mexico use invented, clearly-fictional stand-ins rather than real
  * officials, since nobody asked for those specifically.
  *
- * Most units are `range: 1` (melee-adjacent), but the engine's `range` field was always
- * generic Manhattan distance (`engine/battle.ts`'s `targetsInRange`/`attack` don't
- * require adjacency, and don't need to move to attack once something's in range) — two
- * units use that headroom for a *Shining Force*-style ranged kit, traded for a point of
- * `power` since hitting from a distance is worth something: **Musk** (`range: 3`, "lobs
- * a rocket") and Canada's **Mackinaw-jacket guy** (`range: 2`, "fires a bow"). Neither
- * gets a line-of-sight check (nothing in the engine does), so — like every other unit —
- * they can technically hit over the battlefield's obstacles; a minor v1 simplification,
- * not something this change tries to fix.
+ * A handful of named units also carry a personal combat quirk or a small Magic (MP)
+ * pool on top of the plain stats below (Trump's cowardly flee chance, Vance hitting
+ * himself, Miller backstabbing his own team, LeBlanc's dodge chance, Trudeau healing
+ * from Melania's hits, Carney's Charm and Melania's Sorcerer magic) — see
+ * `engine/battle.ts`'s doc comment and `attack()` for what each one actually does.
  *
  * Iran, Venezuela and Russia are new war targets, but — unlike Canada — all three are
  * currently in live, serious real-world conflicts or tensions with the US. Rather than
@@ -44,6 +44,9 @@ export const US_BATTLE_UNITS: Readonly<Record<CharacterId, BattleUnitTemplate>> 
     maxComposure: 16,
     placeholder: { initials: 'DT', color: '#c8323c' },
     sprite: getCharacter('trump').sprite.front,
+    // "60% chance of escaping like a coward" — backs out of his own attack entirely
+    // (engine/battle.ts's `attack`), rather than dodging an incoming one.
+    fleeChance: 0.6,
   },
   vance: {
     id: 'vance',
@@ -53,6 +56,8 @@ export const US_BATTLE_UNITS: Readonly<Record<CharacterId, BattleUnitTemplate>> 
     maxComposure: 12,
     placeholder: { initials: 'JV', color: '#3a6ea5' },
     sprite: getCharacter('vance').sprite.front,
+    // "20% chance of hitting himself like a dumb guy" — the hit redirects onto Vance.
+    selfHitChance: 0.2,
   },
   bessent: {
     id: 'bessent',
@@ -80,12 +85,17 @@ export const US_BATTLE_UNITS: Readonly<Record<CharacterId, BattleUnitTemplate>> 
     maxComposure: 10,
     placeholder: { initials: 'M', color: '#8a6bbf' },
     sprite: getCharacter('melania').sprite.front,
+    // Sorcerer magic: once charged (3 MP, +1 per her own turn), a 50% chance per turn to
+    // curse instead of attack — permanently halves the target's power for the rest of
+    // the battle rather than dealing a hit (engine/battle.ts's `castCurse`).
+    isWoman: true,
+    magic: { kind: 'sorcerer', max: 3, chance: 0.5 },
   },
   musk: {
     id: 'musk',
     move: 3,
-    range: 3,
-    power: 4,
+    range: 1,
+    power: 5,
     maxComposure: 10,
     placeholder: { initials: 'EM', color: '#2bb0b0' },
     sprite: getCharacter('musk').sprite.front,
@@ -100,9 +110,15 @@ export const BATTLE_ROSTERS: Readonly<Record<CountryId, readonly BattleUnitTempl
       move: 2,
       range: 1,
       power: 3,
-      maxComposure: 14,
+      // "High HP" — above the roster's ~10-12 baseline, below the wildcard's "really
+      // high" tier further down.
+      maxComposure: 18,
       placeholder: { initials: 'MC', color: '#c8323c' },
       sprite: '/assets/sprites/canada/carney-front.png',
+      // Charm magic: once charged (3 MP, +1 per his own turn), a 50% chance per turn to
+      // charm instead of attack — the target throws one punch at a random ally of their
+      // own side instead (engine/battle.ts's `castCharm`).
+      magic: { kind: 'charm', max: 3, chance: 0.5 },
     },
     {
       id: 'canada-trudeau',
@@ -110,9 +126,16 @@ export const BATTLE_ROSTERS: Readonly<Record<CountryId, readonly BattleUnitTempl
       move: 3,
       range: 1,
       power: 3,
-      maxComposure: 10,
+      // "Low HP" — well under the roster's ~10-12 baseline; offset by healsFromWomen
+      // below, so a longer fight against Melania specifically plays very differently.
+      maxComposure: 7,
       placeholder: { initials: 'JT', color: '#3a6ea5' },
       sprite: '/assets/sprites/canada/trudeau-front.png',
+      // "HP can increase if hit by a woman" — the only woman who can ever attack him
+      // (Canada's roster has no women of its own to trigger this, only cross-side hits
+      // count) is Melania (`isWoman: true` on US_BATTLE_UNITS.melania above); when she
+      // hits him, engine/battle.ts's `attack` heals instead of damages.
+      healsFromWomen: true,
     },
     {
       id: 'canada-miller',
@@ -123,6 +146,9 @@ export const BATTLE_ROSTERS: Readonly<Record<CountryId, readonly BattleUnitTempl
       maxComposure: 10,
       placeholder: { initials: 'MM', color: '#8f7228' },
       sprite: '/assets/sprites/canada/miller-front.png',
+      // "50% chance of backstabbing his own party" — his attack redirects onto a random
+      // living Canada teammate instead of the intended US target.
+      backstabChance: 0.5,
     },
     {
       id: 'canada-joly',
@@ -133,6 +159,11 @@ export const BATTLE_ROSTERS: Readonly<Record<CountryId, readonly BattleUnitTempl
       maxComposure: 10,
       placeholder: { initials: 'MJ', color: '#3f9b5b' },
       sprite: '/assets/sprites/canada/joly-front.png',
+      // Data-accurate, not currently load-bearing: `healsFromWomen` only ever checks the
+      // *attacker's* `isWoman`, and Joly can only ever be attacked by other Canada-side
+      // units (via Miller's backstab), none of whom are marked `isWoman` — so this has
+      // no effect on a battle today. Left set for correctness, in case that changes.
+      isWoman: true,
     },
     {
       id: 'canada-leblanc',
@@ -143,14 +174,28 @@ export const BATTLE_ROSTERS: Readonly<Record<CountryId, readonly BattleUnitTempl
       maxComposure: 10,
       placeholder: { initials: 'DL', color: '#8a6bbf' },
       sprite: '/assets/sprites/canada/leblanc-front.png',
+      // "50% risk of just avoiding the hit" — a defender-side check: whoever ends up
+      // attacking LeBlanc has a flat 50% chance of the hit whiffing entirely.
+      dodgeChance: 0.5,
+    },
+    {
+      id: 'canada-singh',
+      nameKey: 'battle.unit.canada.singh',
+      move: 2,
+      range: 1,
+      power: 4,
+      maxComposure: 12,
+      placeholder: { initials: 'JS', color: '#e0782c' },
+      sprite: '/assets/sprites/canada/singh-front.png',
     },
     {
       id: 'canada-mackinaw-guy',
       nameKey: 'battle.unit.canada.mackinawGuy',
       move: 3,
-      range: 2,
-      power: 4,
-      maxComposure: 12,
+      range: 1,
+      power: 5,
+      // "Random guy = Really high HP" — the roster's highest, above Carney's "High HP".
+      maxComposure: 24,
       placeholder: { initials: '?', color: '#b0402c' },
       sprite: '/assets/sprites/canada/mackinaw-guy-front.png',
     },

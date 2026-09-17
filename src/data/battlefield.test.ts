@@ -33,10 +33,10 @@ describe('BATTLEFIELD', () => {
   });
 
   it('has at least as many spawn slots as the largest roster needs', () => {
-    // Canada's roster (data/battleRosters.ts) has 6 units — the largest. All 6 US
-    // officials fight together too (gameStore's SWITCHABLE_CHARACTERS), so both sides
-    // need 6 slots.
+    // Canada's roster (data/battleRosters.ts) has 7 units — the largest, since Jagmeet
+    // Singh joined it. All 6 US officials fight together too (gameStore's
+    // SWITCHABLE_CHARACTERS), so the US side still only needs 6 slots.
     expect(US_SPAWN_POSITIONS.length).toBeGreaterThanOrEqual(6);
-    expect(ENEMY_SPAWN_POSITIONS.length).toBeGreaterThanOrEqual(6);
+    expect(ENEMY_SPAWN_POSITIONS.length).toBeGreaterThanOrEqual(7);
   });
 });

@@ -5,6 +5,12 @@
  * for it until real chiptune assets exist, same spirit as the placeholder coloured-square
  * sprites (`data/characters.ts`'s `placeholder` field) stand in for real art.
  *
+ * `playBattleMusic`/`stopBattleMusic` are the one exception — a real, user-supplied audio
+ * file (`public/assets/audio/battle01.mp3`), played back with a plain `HTMLAudioElement`
+ * rather than synthesized, since a 3-minute loop is well past what's reasonable to
+ * generate with oscillators. It's otherwise a first-class citizen of this module: same
+ * `muted` flag, same "never worth crashing the game over a sound" posture.
+ *
  * Lives under `ui/` (not `engine/` or `data/`, per `CLAUDE.md`'s architecture rules —
  * `AudioContext` is a browser API, same reasoning that keeps `localStorage` out of those
  * layers). The context is created lazily, on first actual playback, rather than at
@@ -56,6 +62,7 @@ let ctx: AudioContext | null = null;
 let muted = false;
 let ambient: { readonly oscillators: readonly OscillatorNode[]; readonly gain: GainNode } | null =
   null;
+let battleMusic: HTMLAudioElement | null = null;
 
 /** Creates (once) and resumes the shared `AudioContext`, or returns `null` in an
  * environment with no Web Audio (SSR, an ancient browser, a test runner). */
@@ -140,13 +147,54 @@ export function stopAmbientHum(): void {
   ambient = null;
 }
 
+/**
+ * Starts the looping battle track (`ui/battle/BattleView.tsx` calls this on mount, and
+ * `stopBattleMusic` on unmount — so it plays for exactly as long as a battle is on
+ * screen). Idempotent: calling it again mid-battle (there's no reason to, but nothing
+ * stops a caller) is a no-op rather than restarting the track or stacking a second one.
+ *
+ * Unlike `playSfx`, this still sets up the `<audio>` element even while muted — just
+ * without calling `.play()` — so that unmuting mid-battle (`setMuted`, below) has
+ * something to resume rather than nothing happening until the next battle starts.
+ */
+export function playBattleMusic(): void {
+  if (battleMusic) return;
+  if (typeof window === 'undefined' || typeof Audio === 'undefined') return;
+
+  const audio = new Audio('/assets/audio/battle01.mp3');
+  audio.loop = true;
+  audio.volume = 0.5;
+  battleMusic = audio;
+  if (!muted) {
+    // Autoplay can still be refused in a rare edge case even after a prior user
+    // gesture; there's nothing to recover, so the player just won't hear it that once —
+    // same posture as `playSfx` never throwing over a sound effect.
+    void audio.play().catch(() => {});
+  }
+}
+
+/** Stops and releases the battle track, if one is playing (or paused-while-muted). */
+export function stopBattleMusic(): void {
+  if (!battleMusic) return;
+  battleMusic.pause();
+  battleMusic.currentTime = 0;
+  battleMusic = null;
+}
+
 export function isMuted(): boolean {
   return muted;
 }
 
 /** Mutes (or unmutes) every sound this module makes. Muting also stops the ambient hum
- * immediately, rather than leaving it playing until the next `startAmbientHum` call. */
+ * immediately (rather than leaving it playing until the next `startAmbientHum` call) and
+ * pauses the battle track in place; unmuting resumes the battle track from where it left
+ * off, if one is currently set up (`playBattleMusic`). */
 export function setMuted(next: boolean): void {
   muted = next;
-  if (muted) stopAmbientHum();
+  if (muted) {
+    stopAmbientHum();
+    battleMusic?.pause();
+  } else {
+    void battleMusic?.play().catch(() => {});
+  }
 }

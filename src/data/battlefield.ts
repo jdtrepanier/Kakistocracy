@@ -6,13 +6,25 @@ import type { GridPosition, RoomGrid, TileKind } from '@/engine/movement';
  * couple of obstacles for a little tactical texture, US units spawning on the left,
  * the enemy roster spawning on the right. Built rather than hand-drawn ASCII (like
  * `data/roomLayouts.ts`) since it's a plain rectangle, not a bespoke room design.
+ *
+ * Grew from 11×8 to 20×14 (user feedback: "make the battle much bigger and we could
+ * scroll the map like in Shining Force") — big enough that `ui/battle/BattleView.tsx`'s
+ * projected grid no longer fits the battle viewport at once on either axis, so the new
+ * scrolling/auto-follow camera (`ui/battle/battleCamera.ts`) actually has something to
+ * scroll. The obstacle cluster grew to match (a small plus-shape near the middle, plus
+ * two lone blockers) rather than just stretching the same two-tile pair across a much
+ * bigger open field.
  */
-export const BATTLEFIELD_WIDTH = 11;
-export const BATTLEFIELD_HEIGHT = 8;
+export const BATTLEFIELD_WIDTH = 20;
+export const BATTLEFIELD_HEIGHT = 14;
 
 const OBSTACLES: readonly GridPosition[] = [
-  { x: 5, y: 3 },
-  { x: 5, y: 4 },
+  { x: 9, y: 5 },
+  { x: 9, y: 6 },
+  { x: 9, y: 7 },
+  { x: 10, y: 6 },
+  { x: 13, y: 3 },
+  { x: 13, y: 10 },
 ];
 
 function buildBattlefield(): RoomGrid {
@@ -33,22 +45,28 @@ function buildBattlefield(): RoomGrid {
 export const BATTLEFIELD: RoomGrid = buildBattlefield();
 
 /** Spawn column/rows for each side — the full 6-official cabinet on the left (two
- * columns of 3, since every switchable official fights, GAME_PLAN §7.1/§8), up to 6
- * enemy units on the right (the largest roster, Canada's, has exactly 6). */
+ * columns of 3, since every switchable official fights, GAME_PLAN §7.1/§8), up to 7
+ * enemy units on the right (the largest roster, Canada's, has exactly 7 since Jagmeet
+ * Singh joined it — `data/battleRosters.ts`). Re-centered vertically for the 20×14
+ * field (interior rows 1–12, so centered around row 6–7) rather than reusing the old
+ * 11×8 field's coordinates verbatim; the 7th enemy slot sits one column back (x:16)
+ * rather than extending the x:17 column further, same reasoning as the old field's 7th
+ * slot — clear of the `OBSTACLES` cluster and every other spawn tile. */
 export const US_SPAWN_POSITIONS: readonly GridPosition[] = [
-  { x: 1, y: 2 },
-  { x: 1, y: 4 },
-  { x: 1, y: 6 },
-  { x: 2, y: 1 },
-  { x: 2, y: 3 },
   { x: 2, y: 5 },
+  { x: 2, y: 7 },
+  { x: 2, y: 9 },
+  { x: 3, y: 4 },
+  { x: 3, y: 6 },
+  { x: 3, y: 8 },
 ];
 
 export const ENEMY_SPAWN_POSITIONS: readonly GridPosition[] = [
-  { x: 9, y: 1 },
-  { x: 9, y: 2 },
-  { x: 9, y: 3 },
-  { x: 9, y: 4 },
-  { x: 9, y: 5 },
-  { x: 9, y: 6 },
+  { x: 17, y: 4 },
+  { x: 17, y: 5 },
+  { x: 17, y: 6 },
+  { x: 17, y: 7 },
+  { x: 17, y: 8 },
+  { x: 17, y: 9 },
+  { x: 16, y: 6 },
 ];

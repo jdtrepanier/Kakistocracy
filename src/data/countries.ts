@@ -30,7 +30,26 @@ export interface CountryDef {
    */
   readonly mapX: number;
   readonly mapY: number;
+  /**
+   * Placeholder "country logo" color for the small oval pastille under each unit's
+   * token in `ui/battle/BattleView.tsx` (user feedback: a badge under the character
+   * reads better than the box-shadow rectangle it used to draw around the whole
+   * sprite). Used to be a Unicode flag emoji instead of a color — dropped after
+   * real user feedback showed it rendering as plain "CA"-style two-letter text
+   * instead of a flag picture (Windows' emoji font deliberately renders many flag
+   * emoji as country-code text, unlike macOS/Android — not a bug in this app, just an
+   * unreliable glyph to depend on). A plain color hits the same "which country" read
+   * without needing any font to cooperate; a real crest/logo asset per country would
+   * replace this the same way real sprites replaced the colored-square placeholders —
+   * same spirit, see `CLAUDE.md`'s placeholder-art convention.
+   */
+  readonly color: string;
 }
+
+/** The player's own side badge (`BattleUnitToken`'s pastille for `side: 'us'` units) —
+ * not a `CountryDef` since the US is never a `CountryId` (it's the player, not a World
+ * Map target), so it lives here as its own constant instead of an eighth roster entry. */
+export const US_COLOR = '#3a6ea5';
 
 export const COUNTRIES: readonly CountryDef[] = [
   {
@@ -40,6 +59,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     purchasable: true,
     mapX: 18,
     mapY: 30,
+    color: '#c8323c',
   },
   {
     id: 'greenland',
@@ -48,6 +68,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     purchasable: true,
     mapX: 38,
     mapY: 14,
+    color: '#7fb8d9',
   },
   {
     id: 'panama',
@@ -56,6 +77,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     purchasable: true,
     mapX: 23,
     mapY: 68,
+    color: '#b7422f',
   },
   {
     id: 'mexico',
@@ -64,8 +86,17 @@ export const COUNTRIES: readonly CountryDef[] = [
     purchasable: false,
     mapX: 21,
     mapY: 60,
+    color: '#2f8f4e',
   },
-  { id: 'iran', nameKey: 'country.iran', warTarget: true, purchasable: false, mapX: 71, mapY: 45 },
+  {
+    id: 'iran',
+    nameKey: 'country.iran',
+    warTarget: true,
+    purchasable: false,
+    mapX: 71,
+    mapY: 45,
+    color: '#4a7c59',
+  },
   {
     id: 'venezuela',
     nameKey: 'country.venezuela',
@@ -73,6 +104,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     purchasable: false,
     mapX: 25,
     mapY: 74,
+    color: '#d9a83a',
   },
   {
     id: 'russia',
@@ -81,6 +113,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     purchasable: false,
     mapX: 78,
     mapY: 24,
+    color: '#2f4d80',
   },
 ];
 

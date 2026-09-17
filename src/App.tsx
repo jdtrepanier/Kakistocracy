@@ -5,6 +5,7 @@ import { MuteToggle } from './ui/audio/MuteToggle';
 import { Hud } from './ui/hud/Hud';
 import { Ticker } from './ui/hud/Ticker';
 import { LangToggle } from './ui/menus/LangToggle';
+import { ScreenShake } from './ui/ScreenShake';
 import { EndingScreen } from './ui/screens/EndingScreen';
 import { GameScreen } from './ui/screens/GameScreen';
 import { MonthEndReport } from './ui/screens/MonthEndReport';
@@ -41,11 +42,13 @@ export function App() {
         className="stage"
         style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT, transform: `scale(${scale})` }}
       >
-        <Hud />
-        <CurrentScreen />
-        <LangToggle />
-        <MuteToggle />
-        <Ticker />
+        <ScreenShake>
+          <Hud />
+          <CurrentScreen />
+          <LangToggle />
+          <MuteToggle />
+          <Ticker />
+        </ScreenShake>
       </div>
     </div>
   );

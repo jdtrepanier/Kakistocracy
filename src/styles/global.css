@@ -27,6 +27,10 @@
 *::before,
 *::after {
   box-sizing: border-box;
+  /* Removes the gray/blue flash Android/iOS browsers draw on a tapped element by
+   * default — cosmetic on its own, but distracting across a whole screen of small
+   * pixel-art buttons. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -65,6 +69,13 @@ canvas {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  /* Blocks pinch-zoom and touch-scroll/pull-to-refresh gestures across the whole game
+   * area on touch devices — `useStageScale.ts` already fits the fixed 480×270 stage to
+   * the window with a whole-number zoom, so a stray pinch or drag fighting that would
+   * just misalign the game rather than do anything useful. Buttons and tiles inside
+   * still receive taps/clicks normally; this only disables the browser's own gesture
+   * handling, not pointer events. */
+  touch-action: none;
 }
 
 .stage {
@@ -87,10 +98,19 @@ canvas {
     inset 1px 1px 0 var(--cream);
 }
 
-.pixel-button:hover,
 .pixel-button:focus-visible {
   background: var(--cream);
   outline: none;
+}
+
+/* Scoped to real pointing devices: on touch, `:hover` sticks after a tap until the next
+ * tap elsewhere, which reads as the button staying stuck highlighted rather than
+ * reverting once you lift your finger. */
+@media (hover: hover) and (pointer: fine) {
+  .pixel-button:hover {
+    background: var(--cream);
+    outline: none;
+  }
 }
 
 /* Both sit on top of the news ticker itself (bottom-right corner of the stage), not above
@@ -111,6 +131,39 @@ canvas {
 
 .mute-toggle {
   right: 22px;
+}
+
+/* Screen shake (GAME_PLAN §16/§17 "juice" — see `ui/ScreenShake.tsx`): a plain wrapper,
+ * same box as `.stage`, that only ever gets a `transform` from the `.stage-shake`
+ * animation below — kept off `.stage` itself so it never fights that element's own zoom
+ * transform. `prefers-reduced-motion` already disables every animation project-wide
+ * (below), this one included, with no extra rule needed here. */
+.stage-shake-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.stage-shake-layer.stage-shake {
+  animation: stage-shake 350ms ease-in-out;
+}
+
+@keyframes stage-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-3px, 2px);
+  }
+  40% {
+    transform: translate(3px, -2px);
+  }
+  60% {
+    transform: translate(-2px, -2px);
+  }
+  80% {
+    transform: translate(2px, 2px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

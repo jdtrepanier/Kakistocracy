@@ -4,14 +4,9 @@ import { BALANCE } from '@/data/balance';
 import { isSameMonth } from '@/engine/calendar';
 import { useGameStore } from '@/store/gameStore';
 import { playSfx } from '../audio/sfx';
-import {
-  formatDate,
-  formatStatDelta,
-  formatStatValue,
-  REPORT_STAT_ORDER,
-  statLabelKey,
-} from '../format';
+import { formatDate } from '../format';
 import { useT } from '../useT';
+import { ReportStatsTable } from './ReportStatsTable';
 
 /** Full-screen summary shown right after End Month: what happened, and the new stats. */
 export function MonthEndReport() {
@@ -83,19 +78,7 @@ export function MonthEndReport() {
         </section>
       )}
 
-      <table className="report-stats">
-        <tbody>
-          {REPORT_STAT_ORDER.map((stat) => (
-            <tr key={stat}>
-              <th scope="row">{t(statLabelKey(stat))}</th>
-              <td>{formatStatValue(stat, report.statsAfter[stat])}</td>
-              <td className="report-delta">
-                {formatStatDelta(stat, report.statsAfter[stat] - report.statsBefore[stat])}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ReportStatsTable statsBefore={report.statsBefore} statsAfter={report.statsAfter} />
 
       <button
         type="button"

@@ -1,7 +1,15 @@
 /* Tactical battles (GAME_PLAN §7.1): rendered on the same isometric camera as the room
  * view — see ui/battle/BattleView.tsx's doc comment. `.iso-diamond`/`.iso-block`/
  * `.iso-face*` (the tile/wall primitives) are shared with room.css; only the
- * battle-specific bits (clickable tile states, unit tokens) live here. */
+ * battle-specific bits (clickable tile states, unit tokens, the HP/MP stat readout, the
+ * scrolling camera) live here.
+ *
+ * The battlefield grew from 11×8 to 20×14 and the roster columns became small overlay
+ * panels instead of full-height flex columns (user feedback: "make the battle much
+ * bigger and we could scroll the map like in Shining Force") — `.battle-viewport` is
+ * the clipped window (same "fixed size, `overflow: hidden`" shape as `.room-viewport`
+ * in room.css) and `.battle-grid-iso` is the full, much-bigger projected grid that
+ * scrolls inside it, translated by `ui/battle/useBattleCamera.ts`'s camera state. */
 
 .battle-overlay {
   gap: 4px;
@@ -15,15 +23,43 @@
 
 .battle-body {
   flex: 1;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  position: relative;
   min-height: 0;
 }
 
+.battle-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  outline: none;
+  /* Same reasoning as the global `.viewport` rule (global.css): without this, a
+   * touch-device drag meant to pan the camera also triggers the browser's own
+   * scroll/pinch gesture on this region, fighting the JS-driven pan. */
+  touch-action: none;
+}
+
+/* Small overlay panels instead of full-height flex columns, so the map underneath gets
+ * nearly the whole battle area — each row already has its own opaque background
+ * (`.battle-roster-row`), so the list itself doesn't need one. */
+.battle-roster-compact {
+  position: absolute;
+  top: 2px;
+  z-index: 2;
+  width: 92px;
+  max-height: calc(100% - 4px);
+  overflow-y: auto;
+}
+
+.battle-roster-us {
+  left: 2px;
+}
+
+.battle-roster-enemy {
+  right: 2px;
+}
+
 .battle-roster {
-  flex: 1 1 80px;
-  min-width: 70px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -39,18 +75,6 @@
   padding: 2px;
   background: var(--navy-dark);
   border: 1px solid transparent;
-}
-
-/* Name + composure bar stacked under each other, next to the swatch, instead of side
- * by side — a row no longer needs a name column *and* a separate fixed-width bar
- * column, which is what let the battlefield grow (`BattleView.tsx`'s
- * `BATTLE_GRID_SCALE`). */
-.battle-roster-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .battle-roster-row.is-current {
@@ -75,26 +99,43 @@
   image-rendering: pixelated;
 }
 
-/* A US official's roster name is a short, 8-character-max code (`shortName`, e.g.
- * "LUTNICK") so one line is normally enough; an enemy roster's name is a full
- * descriptive phrase (`data/battleRosters.ts`'s `nameKey`, e.g. "Guy in a Mackinaw
- * Jacket") with no short-name layer of its own, so it's allowed to wrap onto a second
- * line instead of being ellipsized down to one or two unreadable characters (the
- * layout bug this replaces). */
 .battle-roster-name {
+  flex: 1;
   min-width: 0;
   color: var(--cream);
+  white-space: nowrap;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-height: 1.35;
-  word-break: break-word;
+  text-overflow: ellipsis;
+}
+
+/* HP (the composure bar) stacked over MP (magic pips, only for a unit with `magic` —
+ * Carney/Melania) — "let's see HP and MP" (user feedback). Kept as its own narrow
+ * column so a non-magic unit's row doesn't grow: `.battle-stat-row` for MP is only ever
+ * rendered when there's a pip to show. */
+.battle-stat-col {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.battle-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.battle-stat-value {
+  flex: none;
+  min-width: 10px;
+  color: var(--cream);
+  font-size: 6px;
+  text-align: right;
 }
 
 .battle-composure-bar {
-  display: block;
-  width: 100%;
+  flex: none;
+  width: 26px;
   height: 4px;
   background: var(--navy);
   border: 1px solid var(--black);
@@ -106,29 +147,34 @@
   background: var(--red);
 }
 
-/* The battlefield is projected at full room-camera tile size (`ui/room/isometric.ts`)
- * and then scaled down to fit — see `BattleView.tsx`'s `BATTLE_GRID_SCALE` comment.
- * This outer box is the *scaled* footprint, so it's what the roster sidebars actually
- * flex against; `overflow: hidden` trims the inner box's unscaled corner rounding. */
-.battle-grid-scale {
-  position: relative;
-  flex: none;
-  overflow: hidden;
-  align-self: center;
+.battle-magic-pips {
+  display: flex;
+  gap: 1px;
 }
 
-/* The isometric battlefield world: sized to fit the whole projected grid (like
- * `.room-iso-world`) but never panned — a tactical battle shows the entire field at
- * once, so there's no camera-follow here. Scaled down within `.battle-grid-scale`
- * above; drawn at its natural size so the projection math (`isoGridBounds`) and every
- * tile's `left`/`top` stay simple round numbers. The `0.85` here must match
- * `BattleView.tsx`'s `BATTLE_GRID_SCALE` by hand — CSS can't reference a JS constant
- * (same limitation as `ROOM_MOVE_TRANSITION_MS` in `ui/room/isometric.ts`). */
+.battle-magic-pip {
+  width: 4px;
+  height: 4px;
+  background: var(--navy);
+  border: 1px solid var(--black);
+}
+
+.battle-magic-pip.is-filled {
+  background: var(--blue);
+}
+
+/* The isometric battlefield world: sized to fit the whole projected grid and translated
+ * by the camera to follow the active unit (or the player's own manual pan) — same
+ * "absolutely positioned, transform-translated world inside a clipped viewport" shape
+ * as `.room-iso-world`, just with a camera that also responds to player input rather
+ * than only ever centering the party. `transitionDuration` is overridden to `0ms`
+ * inline while actively dragging (`BattleView.tsx`'s `isDragging`) so a hand-pan tracks
+ * the pointer 1:1 instead of easing behind it. */
 .battle-grid-iso {
-  position: relative;
-  flex: none;
-  transform: scale(0.85);
-  transform-origin: top left;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: transform 160ms ease-out;
 }
 
 /* A floor tile is a plain `.iso-diamond.iso-floor` (room.css) turned into a button so
@@ -157,25 +203,31 @@
   cursor: default;
 }
 
-/* `.iso-block.iso-wall`'s default fill (room.css) is `--navy-dark` — the same color as
- * this overlay's own background, so an interior obstacle (not sitting against a
- * differently-colored floor edge, unlike most room walls) reads as a hole punched in
- * the field instead of a raised block. Give battle walls a lighter, sandbag-like fill
- * so both the border and the obstacles are legible against the dark backdrop. */
-.battle-grid-iso .iso-block.iso-wall .iso-face {
-  background: var(--gold-dim);
-}
-
 /* A unit's token: the same "colored square, bottom-anchored to its tile" placeholder
- * as the room camera's player marker (`.room-player`). Used to carry a side/current
- * outline (`.is-us`/`.is-enemy`/`.is-current` box-shadows) on every token at once, which
- * read as a distracting rectangle around each sprite rather than a helpful cue — the
- * roster sidebar's gold border and the turn banner text already say whose turn it is,
- * so the on-board outline was dropped. The modifier classes are still applied in
- * `BattleView.tsx` (harmless without matching rules here) in case a lighter touch —
- * e.g. only the *current* unit — is wanted later. */
+ * as the room camera's player marker (`.room-player`), wrapped so a flag pastille can
+ * sit under its feet and a current-turn marker can float over its head — see
+ * `.battle-unit-flag` and `.battle-unit-current-marker` below. Used to be a single
+ * sprite element with a box-shadow rectangle drawn around it for side/current-turn
+ * (removed: real user feedback said it read as a loud rectangle over the character art
+ * once real sprites replaced the placeholder squares it was designed for). */
 .battle-unit-iso {
   position: absolute;
+  width: 18px;
+  height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transform: translate(-50%, -78%);
+}
+
+/* `z-index: 2`, explicitly higher than `.battle-unit-flag`'s — needed because flex
+ * items with `z-index: auto` (the default) paint in *layout* order, not DOM order, so
+ * putting the oval earlier in the markup does not by itself make the sprite paint on
+ * top of it where they overlap. An explicit, non-`auto` `z-index` on both opts them out
+ * of that layout-order-based stacking and into ordinary numeric comparison instead. */
+.battle-unit-sprite {
+  z-index: 2;
   width: 18px;
   height: 42px;
   display: flex;
@@ -184,10 +236,60 @@
   color: var(--navy-dark);
   font-size: 6px;
   box-sizing: border-box;
-  pointer-events: none;
   object-fit: contain;
   image-rendering: pixelated;
-  transform: translate(-50%, -85%);
+}
+
+.battle-unit-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+/* The country/side pastille (user feedback: "the pastille should be under the
+ * character like if it was sitting on it. You can give it [an] oval [shape] and a
+ * color" — a flat color standing in for a real crest/logo, `data/countries.ts`'s
+ * `color` field doc comment explains why a color and not a flag emoji). Comes last in
+ * the flex column, at the character's feet; its negative `margin-top` pulls it up to
+ * overlap the sprite's bottom edge, and `z-index: 1` (lower than the sprite's, see that
+ * rule's comment) keeps it painting underneath at the overlap instead of covering the
+ * character's feet — a real bug in an earlier pass, caught by user feedback ("the
+ * pastille should be drawn before the character, z-index lower"). A thin side-colored
+ * ring keeps the at-a-glance "whose side" read the old rectangle gave, without
+ * covering the sprite. */
+.battle-unit-flag {
+  z-index: 1;
+  flex: none;
+  width: 16px;
+  height: 7px;
+  margin-top: -6px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.battle-unit-flag.is-us {
+  box-shadow: 0 0 0 1px var(--gold);
+}
+
+.battle-unit-flag.is-enemy {
+  box-shadow: 0 0 0 1px var(--red);
+}
+
+/* Bobs gently over the active unit's head — a Shining Force/Fire Emblem-style turn
+ * pointer, standing in for the removed cream box-shadow ring. */
+.battle-unit-current-marker {
+  color: var(--cream);
+  font-size: 8px;
+  line-height: 1;
+  animation: battle-unit-marker-bob 600ms ease-in-out infinite alternate;
+}
+
+@keyframes battle-unit-marker-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(2px);
+  }
 }
 
 .battle-turn-banner {

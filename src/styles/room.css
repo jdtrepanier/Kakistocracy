@@ -146,15 +146,71 @@
 }
 
 .room-hint {
-  /* Bottom-LEFT, not bottom-right: the cross menu (below) anchors bottom-right, and the
-   * hint only shows while facing an object — exactly when the cross menu is also up —
-   * so sharing a corner with it would overlap the two. */
+  /* Top-left: the cross menu anchors bottom-right and the touch D-pad (below) anchors
+   * bottom-left, and the hint can show at the same time as either (or both, on a touch
+   * device) — top-left is the one corner neither of them ever uses. */
   position: absolute;
-  inset: auto auto 4px 4px;
+  inset: 4px auto auto 4px;
   color: var(--cream);
   background: var(--navy-dark);
   padding: 2px 4px;
   opacity: 0.9;
+}
+
+/* Touch movement (TouchDPad.tsx): the on-screen equivalent of arrow keys/WASD — the one
+ * interaction in the room camera that had no touch equivalent at all, since it only ever
+ * listened for `onKeyDown`. Mirrors the cross menu's bottom-right placement on the
+ * opposite corner. Hidden on devices with a real mouse/trackpad (`hover: hover` +
+ * `pointer: fine`) so desktop keyboard players don't get their tiny 480×270 stage
+ * cluttered with controls they'll never tap. */
+.room-dpad {
+  position: absolute;
+  inset: auto auto 6px 6px;
+  display: grid;
+  grid-template-columns: repeat(3, 18px);
+  grid-template-rows: repeat(3, 16px);
+  gap: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .room-dpad {
+    display: none;
+  }
+}
+
+.room-dpad-btn {
+  padding: 0;
+  font-size: 8px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* Prevents the browser's own press-and-hold gestures (text-selection magnifier,
+   * scroll/zoom) from hijacking a held D-pad press, which is exactly the interaction
+   * `TouchDPad.tsx` relies on to repeat a step every `DPAD_REPEAT_MS`. */
+  touch-action: none;
+  user-select: none;
+}
+
+.room-dpad-btn-up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.room-dpad-btn-left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.room-dpad-btn-right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.room-dpad-btn-down {
+  grid-column: 2;
+  grid-row: 3;
 }
 
 /* Cross menu (GAME_PLAN §11): DECREE / TALK / ITEM / SWITCH in a diamond, one icon glyph
@@ -279,10 +335,18 @@
   cursor: pointer;
 }
 
-.map-country-button:hover,
 .map-country-button:focus-visible {
   background: var(--navy-light);
   outline: 1px solid var(--gold);
+}
+
+/* Scoped to real pointing devices: on touch, `:hover` sticks after a tap until the next
+ * tap elsewhere, which reads as the button staying stuck highlighted. */
+@media (hover: hover) and (pointer: fine) {
+  .map-country-button:hover {
+    background: var(--navy-light);
+    outline: 1px solid var(--gold);
+  }
 }
 
 .map-country.is-war .map-country-dot {

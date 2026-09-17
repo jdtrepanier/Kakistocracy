@@ -5,6 +5,7 @@ import { StubOverlay } from '../menus/StubOverlay';
 import { OfficialWindow } from '../room/OfficialWindow';
 import { RoomView } from '../room/RoomView';
 import { RoomWindow } from '../room/RoomWindow';
+import { TouchDPad } from '../room/TouchDPad';
 import { useT } from '../useT';
 import { ActionsOverlay } from './ActionsOverlay';
 import { MapScreen } from './MapScreen';
@@ -27,6 +28,7 @@ export function GameScreen() {
       </div>
       <div className="room-viewport-wrap">
         <RoomView />
+        <TouchDPad />
         <CrossMenu />
       </div>
       <div className="toolbar">
