@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Rng } from '@/engine/rng';
-import { COUNTRIES, US_COLOR, getCountry, pickRandomCountry } from './countries';
+import { COUNTRIES, US_BADGE, US_COLOR, getCountry, pickRandomCountry } from './countries';
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const BADGE_PATH = /^\/assets\/sprites\/flags\/[a-z]+\.png$/;
 
 /** A fake RNG whose pick() always returns the first candidate, for deterministic tests. */
 function firstPickRng(): Rng {
@@ -45,6 +46,17 @@ describe('COUNTRIES', () => {
 
   it('gives US_COLOR a valid hex color too', () => {
     expect(US_COLOR).toMatch(HEX_COLOR);
+  });
+
+  it('gives every country a badge sprite path under the flags folder', () => {
+    for (const country of COUNTRIES) {
+      expect(country.badge).toMatch(BADGE_PATH);
+    }
+  });
+
+  it('gives US_BADGE a badge sprite path too, distinct from every country badge', () => {
+    expect(US_BADGE).toMatch(BADGE_PATH);
+    expect(COUNTRIES.map((c) => c.badge)).not.toContain(US_BADGE);
   });
 });
 

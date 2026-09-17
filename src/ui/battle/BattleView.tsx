@@ -7,7 +7,7 @@ import {
   type PointerEvent,
 } from 'react';
 import { displayName } from '@/data/characters';
-import { US_COLOR, getCountry } from '@/data/countries';
+import { US_BADGE, US_COLOR, getCountry } from '@/data/countries';
 import {
   currentUnit,
   reachableTiles,
@@ -241,32 +241,39 @@ function BattleTile({
 
 /** A battle unit's isometric token: anchored to the bottom-center of its tile, same
  * "colored square with initials" placeholder as the room camera's player marker — plus
- * a small oval pastille under its feet (which side/country the unit belongs to,
+ * a small badge pastille under its feet (which side/country the unit belongs to,
  * user feedback: "the pastille should be under the character like if it was sitting on
- * it... give it an oval [shape] and a color") and a bobbing marker over its head when
- * it's that unit's turn. Both replace the old box-shadow rectangle drawn around the
- * whole sprite (real user feedback: it read as a loud, distracting outline once real
- * sprite art replaced the placeholder squares it was originally designed around) with
- * something that reads the same information — side, and whose turn it is — without
- * covering the character art. The oval renders *after* the sprite here, at its natural
- * "last in the column, at the feet" position, and needs an explicit lower `z-index`
- * than the sprite (`battle.css`) to actually paint underneath it — flex items with
- * `z-index: auto` (the default) stack in their *layout* order regardless of DOM order,
- * so "oval earlier in the markup" alone does not make it paint first; a follow-up
- * round of user feedback ("the pastille should be drawn before the character, z-index
- * lower") caught that this hadn't actually worked. `.battle-unit-flag`'s negative
- * `margin-top` in `battle.css` pulls the oval up to overlap the sprite's bottom edge,
- * so the character paints on top of it like a shadow/base it's standing on, rather
- * than the two just sitting stacked with a gap. */
+ * it... give it an oval [shape] and a color", later upgraded to real per-country flag
+ * art the user supplied — `data/countries.ts`'s `badge`/`US_BADGE`, cropped from
+ * `public/assets/sprites/source/country-flags-sheet.png`) and a bobbing marker over its
+ * head when it's that unit's turn. Both replace the old box-shadow rectangle drawn
+ * around the whole sprite (real user feedback: it read as a loud, distracting outline
+ * once real sprite art replaced the placeholder squares it was originally designed
+ * around) with something that reads the same information — side, country, and whose
+ * turn it is — without covering the character art. The badge renders *after* the
+ * sprite here, at its natural "last in the column, at the feet" position, and needs an
+ * explicit lower `z-index` than the sprite (`battle.css`) to actually paint underneath
+ * it — flex items with `z-index: auto` (the default) stack in their *layout* order
+ * regardless of DOM order, so "badge earlier in the markup" alone does not make it
+ * paint first; a follow-up round of user feedback ("the pastille should be drawn
+ * before the character, z-index lower") caught that this hadn't actually worked.
+ * `.battle-unit-flag`'s negative `margin-top` in `battle.css` pulls the badge up to
+ * overlap the sprite's bottom edge, so the character paints on top of it like a
+ * shadow/base it's standing on, rather than the two just sitting stacked with a gap.
+ * Falls back to a flat colored oval (`color`) when a country has no `badge` art yet —
+ * same "real art if we have it, else a colored placeholder" pattern as the sprite
+ * check just above it. */
 function BattleUnitToken({
   unit,
   point,
   isCurrent,
+  badge,
   color,
 }: {
   unit: BattleUnit;
   point: IsoPoint;
   isCurrent: boolean;
+  badge?: string;
   color: string;
 }) {
   const depth = isoDepth(unit.pos);
@@ -292,11 +299,20 @@ function BattleUnitToken({
           {unit.placeholder.initials}
         </div>
       )}
-      <span
-        className={`battle-unit-flag is-${unit.side}`}
-        style={{ background: color }}
-        aria-hidden="true"
-      />
+      {badge ? (
+        <img
+          className={`battle-unit-flag battle-unit-flag-badge is-${unit.side}`}
+          src={badge}
+          alt=""
+          aria-hidden="true"
+        />
+      ) : (
+        <span
+          className={`battle-unit-flag is-${unit.side}`}
+          style={{ background: color }}
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }
@@ -392,8 +408,9 @@ export function BattleView() {
   const enemyUnits = battle.units.filter((u) => u.side === 'enemy');
   const living = battle.units.filter((u) => u.composure > 0);
   const lastLog = battle.log[battle.log.length - 1];
-  const enemyColor = getCountry(resolution.battleCountry).color;
-  const unitColor = (unit: BattleUnit) => (unit.side === 'us' ? US_COLOR : enemyColor);
+  const enemyCountry = getCountry(resolution.battleCountry);
+  const unitColor = (unit: BattleUnit) => (unit.side === 'us' ? US_COLOR : enemyCountry.color);
+  const unitBadge = (unit: BattleUnit) => (unit.side === 'us' ? US_BADGE : enemyCountry.badge);
 
   const handleTileClick = (x: number, y: number) => {
     if (!isPlayerTurn) return;
@@ -523,6 +540,7 @@ export function BattleView() {
                 unit={u}
                 point={projectIsoWithin(u.pos, bounds)}
                 isCurrent={active.id === u.id}
+                badge={unitBadge(u)}
                 color={unitColor(u)}
               />
             ))}

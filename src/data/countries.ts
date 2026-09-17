@@ -31,25 +31,33 @@ export interface CountryDef {
   readonly mapX: number;
   readonly mapY: number;
   /**
-   * Placeholder "country logo" color for the small oval pastille under each unit's
-   * token in `ui/battle/BattleView.tsx` (user feedback: a badge under the character
-   * reads better than the box-shadow rectangle it used to draw around the whole
-   * sprite). Used to be a Unicode flag emoji instead of a color — dropped after
-   * real user feedback showed it rendering as plain "CA"-style two-letter text
-   * instead of a flag picture (Windows' emoji font deliberately renders many flag
+   * Fallback "country logo" color for the small oval pastille under each unit's token
+   * in `ui/battle/BattleView.tsx`, used only when `badge` (below) is missing — same
+   * "real art if we have it, else a colored placeholder" pattern as `characters.ts`'s
+   * `sprite`/`placeholder` pair. Used to be a Unicode flag emoji instead of a color —
+   * dropped after real user feedback showed it rendering as plain "CA"-style two-letter
+   * text instead of a flag picture (Windows' emoji font deliberately renders many flag
    * emoji as country-code text, unlike macOS/Android — not a bug in this app, just an
-   * unreliable glyph to depend on). A plain color hits the same "which country" read
-   * without needing any font to cooperate; a real crest/logo asset per country would
-   * replace this the same way real sprites replaced the colored-square placeholders —
-   * same spirit, see `CLAUDE.md`'s placeholder-art convention.
+   * unreliable glyph to depend on).
    */
   readonly color: string;
+  /**
+   * Real flag-badge art for the pastille (`public/assets/sprites/flags/`, user-supplied
+   * — a gold-ringed oval per country, cropped from a single reference sheet kept at
+   * `public/assets/sprites/source/country-flags-sheet.png`) — replaces the flat `color`
+   * oval the same way real character sprites replaced the colored-square placeholders,
+   * same spirit, see `CLAUDE.md`'s placeholder-art convention. Optional so a future
+   * country added without art still renders (falls back to `color`, same as `sprite?`
+   * on `BattleUnitTemplate`), even though every current country has one.
+   */
+  readonly badge?: string;
 }
 
 /** The player's own side badge (`BattleUnitToken`'s pastille for `side: 'us'` units) —
  * not a `CountryDef` since the US is never a `CountryId` (it's the player, not a World
  * Map target), so it lives here as its own constant instead of an eighth roster entry. */
 export const US_COLOR = '#3a6ea5';
+export const US_BADGE = '/assets/sprites/flags/us.png';
 
 export const COUNTRIES: readonly CountryDef[] = [
   {
@@ -60,6 +68,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     mapX: 18,
     mapY: 30,
     color: '#c8323c',
+    badge: '/assets/sprites/flags/canada.png',
   },
   {
     id: 'greenland',
@@ -69,6 +78,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     mapX: 38,
     mapY: 14,
     color: '#7fb8d9',
+    badge: '/assets/sprites/flags/greenland.png',
   },
   {
     id: 'panama',
@@ -78,6 +88,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     mapX: 23,
     mapY: 68,
     color: '#b7422f',
+    badge: '/assets/sprites/flags/panama.png',
   },
   {
     id: 'mexico',
@@ -87,6 +98,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     mapX: 21,
     mapY: 60,
     color: '#2f8f4e',
+    badge: '/assets/sprites/flags/mexico.png',
   },
   {
     id: 'iran',
@@ -96,6 +108,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     mapX: 71,
     mapY: 45,
     color: '#4a7c59',
+    badge: '/assets/sprites/flags/iran.png',
   },
   {
     id: 'venezuela',
@@ -105,6 +118,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     mapX: 25,
     mapY: 74,
     color: '#d9a83a',
+    badge: '/assets/sprites/flags/venezuela.png',
   },
   {
     id: 'russia',
@@ -114,6 +128,7 @@ export const COUNTRIES: readonly CountryDef[] = [
     mapX: 78,
     mapY: 24,
     color: '#2f4d80',
+    badge: '/assets/sprites/flags/russia.png',
   },
 ];
 

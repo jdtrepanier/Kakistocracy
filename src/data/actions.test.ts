@@ -30,7 +30,6 @@ describe('ACTIONS', () => {
     const gated = ACTIONS.filter((a) => a.requires?.iqMax !== undefined);
     expect(gated.map((a) => a.id)).toEqual(
       expect.arrayContaining([
-        'declare_war',
         'declare_war_object',
         'buy_country',
         'fire_fed_chair',
@@ -38,6 +37,10 @@ describe('ACTIONS', () => {
         'mint_platinum_coin',
       ]),
     );
+  });
+
+  it('never IQ-gates Declare War on a country (real user feedback: it should always be available)', () => {
+    expect(getAction('declare_war').requires?.iqMax).toBeUndefined();
   });
 
   it('limits the safe actions to once per month', () => {

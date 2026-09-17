@@ -247,31 +247,53 @@
 
 /* The country/side pastille (user feedback: "the pastille should be under the
  * character like if it was sitting on it. You can give it [an] oval [shape] and a
- * color" — a flat color standing in for a real crest/logo, `data/countries.ts`'s
- * `color` field doc comment explains why a color and not a flag emoji). Comes last in
- * the flex column, at the character's feet; its negative `margin-top` pulls it up to
- * overlap the sprite's bottom edge, and `z-index: 1` (lower than the sprite's, see that
- * rule's comment) keeps it painting underneath at the overlap instead of covering the
- * character's feet — a real bug in an earlier pass, caught by user feedback ("the
- * pastille should be drawn before the character, z-index lower"). A thin side-colored
- * ring keeps the at-a-glance "whose side" read the old rectangle gave, without
- * covering the sprite. */
+ * color", later upgraded to real per-country flag art the user supplied —
+ * `data/countries.ts`'s `badge`/`US_BADGE`, `.battle-unit-flag-badge` below). Comes
+ * last in the flex column, at the character's feet; its negative `margin-top` pulls it
+ * up to overlap the sprite's bottom edge, and `z-index: 1` (lower than the sprite's,
+ * see that rule's comment) keeps it painting underneath at the overlap instead of
+ * covering the character's feet — a real bug in an earlier pass, caught by user
+ * feedback ("the pastille should be drawn before the character, z-index lower"). Base
+ * rule holds only what both the real-art `<img>` and the flat-color fallback `<span>`
+ * share; size/shape differ below since real badge art isn't the same aspect ratio as
+ * the flat oval it replaces. */
 .battle-unit-flag {
   z-index: 1;
   flex: none;
+  box-sizing: border-box;
+}
+
+/* The flat-color fallback (`color`, no `badge` art yet for this country — same
+ * "real art if we have it" pattern as `.battle-unit-placeholder`): a rounded oval
+ * tinted by inline `background`, with a thin side-colored ring giving the same
+ * at-a-glance "whose side" read the old box-shadow rectangle gave, without covering
+ * the sprite. */
+.battle-unit-flag:not(.battle-unit-flag-badge) {
   width: 16px;
   height: 7px;
   margin-top: -6px;
   border-radius: 50%;
-  box-sizing: border-box;
 }
 
-.battle-unit-flag.is-us {
+.battle-unit-flag:not(.battle-unit-flag-badge).is-us {
   box-shadow: 0 0 0 1px var(--gold);
 }
 
-.battle-unit-flag.is-enemy {
+.battle-unit-flag:not(.battle-unit-flag-badge).is-enemy {
   box-shadow: 0 0 0 1px var(--red);
+}
+
+/* Real flag-badge art (user-supplied, `public/assets/sprites/source/
+ * country-flags-sheet.png` cropped per country): its own gold ring and glow are
+ * already baked into the image, so no extra border-radius/box-shadow here, just size
+ * and position — closer to the source crop's own ~110×84 aspect ratio than the flat
+ * oval's flatter 16×7, so it doesn't look squashed. */
+.battle-unit-flag-badge {
+  width: 14px;
+  height: 11px;
+  margin-top: -5px;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 /* Bobs gently over the active unit's head — a Shining Force/Fire Emblem-style turn

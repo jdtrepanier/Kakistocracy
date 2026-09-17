@@ -279,7 +279,7 @@ EA = Executive Actions. **IQ gate** = only available at or below that Party IQ. 
 
 | # | Action | Who | Where | EA | IQ gate | Base % | Main effects |
 |---|---|---|---|---|---|---|---|
-| 1 | **Declare War** on a country *(random target from `data/countries.ts`; resolved by a tactical battle, §7.1, not a hidden roll)* | Trump | Situation Room | 2 | ≤ 70 | — (battle) | Debt +$1.5 T, Happiness +10 then −1/month for a year, IQ −5, **DEFCON −2** |
+| 1 | **Declare War** on a country *(random target from `data/countries.ts`; resolved by a tactical battle, §7.1, not a hidden roll)* | Trump | Situation Room | 2 | — | — (battle) | Debt +$1.5 T, Happiness +10 then −1/month for a year, IQ −5, **DEFCON −2** |
 | 2 | **Declare War on an Object** (the Sun, windmills, paper straws) | Trump | Situation Room | 1 | ≤ 50 | 80 | IQ −10, Headlines +++ |
 | 3 | **Impose Tariff** (country + %) | Lutnick | Commerce | 1 | — | 75 | Revenue (Debt −), inflation + over 3 months, Happiness −2, retaliation risk |
 | 4 | **90-Day Pause** | Lutnick / Trump | Oval Office | 0 | — | 90 | Undoes half a tariff's inflation, Headlines + |

@@ -12,7 +12,14 @@ export const ACTIONS: readonly ActionDef[] = [
     actors: ['trump'],
     room: 'situationRoom',
     cost: { ea: 2 },
-    requires: { iqMax: 70 },
+    // No IQ gate (real user feedback: "ensure we can always Declare war to a country,
+    // no need to have a low IQ") — this used to require Party IQ ≤ 70 like the game's
+    // other big-swing actions, but declaring war is the whole point of a tactical
+    // battle existing at all (§7.1), so gating it behind a stat the player might not
+    // have tanked yet meant the battle screen — most of Phase 6's actual gameplay —
+    // could be unreachable for stretches of a run. `declare_war_object` (the Sun,
+    // windmills, etc.) keeps its own `iqMax: 50` gate below; that one's a pure gag
+    // action with no battle behind it, so staying IQ-gated doesn't block anything.
     baseSuccess: 60,
     onSuccess: [
       { kind: 'delta', stat: 'debt', amount: 1.5 },
