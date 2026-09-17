@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { getAction } from '@/data/actions';
-import { BALANCE } from '@/data/balance';
+import { BALANCE, getBalance } from '@/data/balance';
 import { isSameMonth } from '@/engine/calendar';
 import { useGameStore } from '@/store/gameStore';
 import { playSfx } from '../audio/sfx';
@@ -13,6 +13,7 @@ export function MonthEndReport() {
   const t = useT();
   const report = useGameStore((s) => s.monthReport);
   const game = useGameStore((s) => s.game);
+  const difficulty = useGameStore((s) => s.difficulty);
   const continueFromReport = useGameStore((s) => s.continueFromReport);
 
   useEffect(() => {
@@ -46,8 +47,14 @@ export function MonthEndReport() {
         >
           <p>
             {t('report.impeachmentWarning', {
+              // Real bug found on a polish pass: this used to read the always-Normal
+              // `BALANCE` constant directly (Normal's threshold is 3), so an Intern run
+              // (threshold 4) or Third Term run (threshold 2) always showed the wrong
+              // denominator here — off by one in either direction depending on which
+              // non-Normal difficulty was picked. `getBalance(difficulty)` is the same
+              // fix `Hud.tsx`'s Executive Action pips needed for the identical reason.
               n: game.lowHappinessStreak,
-              total: BALANCE.thresholds.impeachmentStreakMonths,
+              total: getBalance(difficulty).thresholds.impeachmentStreakMonths,
             })}
           </p>
         </section>

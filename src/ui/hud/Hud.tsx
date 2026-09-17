@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BALANCE } from '@/data/balance';
+import { BALANCE, getBalance } from '@/data/balance';
 import { termYear } from '@/engine/calendar';
 import { useGameStore } from '@/store/gameStore';
 import { formatDate, formatDebt, formatPercent, formatWholePercent } from '../format';
@@ -46,7 +46,13 @@ function ActionPips({ left, total }: { left: number; total: number }) {
 export function Hud() {
   const t = useT();
   const game = useGameStore((s) => s.game);
+  const difficulty = useGameStore((s) => s.difficulty);
   const { stats, date } = game;
+  // `calendar` never varies by difficulty (`data/balance.ts`'s `BALANCES` doc comment:
+  // only how forgiving a run is changes, not its shape), so `BALANCE.calendar.start`
+  // stays correct here regardless of difficulty. `actionsPerMonth` below is a different
+  // story — Intern is 4/month, Third Term is 2 — so that one has to go through
+  // `getBalance(difficulty)` instead of the always-Normal `BALANCE` constant.
   const year = termYear(date, BALANCE.calendar.start);
   const felt = game.feltInflationRevealed ? formatPercent(stats.feltInflation) : t('hud.hidden');
 
@@ -82,7 +88,9 @@ export function Hud() {
       />
       <HudCell
         label={t('hud.actions')}
-        value={<ActionPips left={game.actionsLeft} total={BALANCE.actionsPerMonth} />}
+        value={
+          <ActionPips left={game.actionsLeft} total={getBalance(difficulty).actionsPerMonth} />
+        }
       />
       <HudCell label={t('hud.headlines')} value={Math.round(stats.headlines)} />
       {game.congressLost && (

@@ -349,17 +349,26 @@ type FreshGame = Pick<
 >;
 
 function freshGame(seed: number, difficulty: DifficultyId = DEFAULT_DIFFICULTY): FreshGame {
-  const game = createInitialState(seed, getBalance(difficulty));
+  const player = initialPlayer();
+  const melaniaRoomId = pickMelaniaRoom();
+  // Same "found her right where the player already is, with no door transition to catch
+  // it on" gap `endMonth` had — `MELANIA_ROOMS`'s doc comment explicitly includes the
+  // Oval Office (the player's own starting room) in her candidate pool and calls
+  // starting in her room "a fine gag," but nothing actually granted the bonus here
+  // before this fix. Real bug found on the same polish pass as `endMonth`'s version.
+  const playerAlreadyThere = melaniaRoomId === player.roomId;
+  const initialGame = createInitialState(seed, getBalance(difficulty));
+  const game = playerAlreadyThere ? grantBonusAction(initialGame) : initialGame;
   return {
     game,
     monthStartStats: game.stats,
     monthLog: [],
-    player: initialPlayer(),
+    player,
     activeCharacter: SWITCHABLE_CHARACTERS[0] as CharacterId,
     overlay: null,
     resolution: null,
-    melaniaRoomId: pickMelaniaRoom(),
-    melaniaFoundThisMonth: false,
+    melaniaRoomId,
+    melaniaFoundThisMonth: playerAlreadyThere,
     difficulty,
   };
 }
@@ -444,16 +453,52 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   endMonth: () => {
-    const { game, screen, monthStartStats, monthLog, player, activeCharacter, difficulty } =
-      get();
-    if (screen !== 'game' || game.ending) return;
+    const {
+      game,
+      screen,
+      overlay,
+      resolution,
+      monthStartStats,
+      monthLog,
+      player,
+      activeCharacter,
+      difficulty,
+    } = get();
+    // Same guard `movePlayer` already has, for the same reason: the toolbar's End Month
+    // button stays mounted (just visually covered) under any overlay or resolution flow
+    // (`GameScreen.tsx` renders it unconditionally), so nothing previously stopped a
+    // keyboard user tabbing past a still-open preview/showdown/battle/report and firing
+    // this anyway. Real bug found on a polish pass: doing so ticks the month from
+    // whatever `game` snapshot is current *right now* — which, mid-resolution, is the
+    // stale pre-action state — and the abandoned `resolution` then survives the screen
+    // swap to `monthReport`; returning to the room afterward and confirming that stale
+    // resolution (`continueResolution`) would overwrite the just-advanced month's `game`
+    // with the old pre-tick snapshot, silently reverting the date/economy tick/event.
+    if (screen !== 'game' || overlay !== null || resolution !== null || game.ending) return;
 
     const balance = getBalance(difficulty);
     const endedDate = game.date;
     const tickedGame = tickMonth(game, balance);
-    const { state: nextGame, outcome } = rollMonthlyEvent(tickedGame, balance);
-    const nextLastEventNameKey = outcome ? outcome.event.nameKey : get().lastEventNameKey;
+    const { state: tickedEventGame, outcome } = rollMonthlyEvent(tickedGame, balance);
     const nextMelaniaRoomId = pickMelaniaRoom();
+
+    // Melania's hide-and-seek bonus (GAME_PLAN §8) used to be uncollectable whenever her
+    // freshly-rolled room happened to match the room the player is already standing in —
+    // `movePlayer`'s own grant only fires on a door *transition* into her room, but
+    // re-rolling her location here never moves the player, so there's never a
+    // transition to catch it on. Real bug found on a polish pass, contradicting this
+    // field's own doc comment ("finding her right where you started is a fine gag").
+    // Fixed here, the one place that knows both "where is she now" and "where is the
+    // player right now" at the same time — grants the same +1 EA a door-walk-in would.
+    const playerAlreadyThere = nextMelaniaRoomId === player.roomId;
+    const nextGame = playerAlreadyThere ? grantBonusAction(tickedEventGame) : tickedEventGame;
+    // Only claims the ticker line if no bigger monthly event already has it this month —
+    // a real event headline should never be silently bumped for this smaller flavor gag.
+    const nextLastEventNameKey = outcome
+      ? outcome.event.nameKey
+      : playerAlreadyThere
+        ? 'melania.found'
+        : get().lastEventNameKey;
 
     const hasSave = autosaveSnapshot({
       game: nextGame,
@@ -463,7 +508,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       activeCharacter,
       lastEventNameKey: nextLastEventNameKey,
       melaniaRoomId: nextMelaniaRoomId,
-      melaniaFoundThisMonth: false,
+      melaniaFoundThisMonth: playerAlreadyThere,
       difficulty,
     });
 
@@ -480,7 +525,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       monthLog: [],
       lastEventNameKey: nextLastEventNameKey,
       melaniaRoomId: nextMelaniaRoomId,
-      melaniaFoundThisMonth: false,
+      melaniaFoundThisMonth: playerAlreadyThere,
       screen: 'monthReport',
       hasSave,
     });
@@ -644,7 +689,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     // to attack — user feedback: having to click End Turn every time a move can't
     // reach an enemy was pure friction. Attacking itself stays a manual click
     // (`battleAttack`, below) — who to hit is a real choice, never auto-picked.
-    if (moved.movedThisTurn && !battle.movedThisTurn && targetsInRange(moved, unit.id).length === 0) {
+    if (
+      moved.movedThisTurn &&
+      !battle.movedThisTurn &&
+      targetsInRange(moved, unit.id).length === 0
+    ) {
       set(settleBattle(resolution, endTurn(moved), game, getBalance(difficulty)));
       return;
     }

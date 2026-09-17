@@ -19,7 +19,7 @@ import {
 import type { GridPosition, TileKind } from '@/engine/movement';
 import type { CharacterId } from '@/engine/types';
 import { useGameStore } from '@/store/gameStore';
-import { playBattleMusic, stopBattleMusic } from '../audio/sfx';
+import { playBattleMusic, playSfx, stopBattleMusic, type SfxId } from '../audio/sfx';
 import { IsoBlock } from '../room/IsoBlocks';
 import {
   CUBE_FACES_WALL,
@@ -70,6 +70,38 @@ function unitLabel(unit: BattleUnit, t: TFunction): string {
 
 function findUnit(battle: BattleState, id: string): BattleUnit | undefined {
   return battle.units.find((u) => u.id === id);
+}
+
+/**
+ * Sound cue for a freshly-appended `BattleLogEntry` — battle actions had no audio
+ * feedback at all before this (only the ambient `playBattleMusic` track), a real gap
+ * once real attacks/moves were the newest, most-played part of the game. Reuses the
+ * same jingle vocabulary `ResolutionOverlay` already uses for a whole action's
+ * success/fail rather than inventing new sounds: a plain landed hit is the lighter
+ * `blip` (these happen often — a full `success` chime on every single swing would wear
+ * out fast), a KO gets the rarer, bigger `success` payoff, a heal or Melania's curse
+ * gets the neutral-positive `confirm`, and anything that *didn't* land (a dodge, Trump's
+ * flee quirk, a fizzled charm with no ally to redirect to) gets `cancel`/`fail` — the
+ * same "that didn't happen" cues the rest of the UI already uses. A `switch` over every
+ * `BattleLogEntry.kind` (not an `if` chain) so adding a new log kind without a case here
+ * is a compile error, not a silently-unheard attack — same exhaustiveness discipline as
+ * `engine/preview.ts`'s `summarizeEffects` (see `CLAUDE.md`'s note on the `unflag` bug
+ * that pattern was added to catch).
+ */
+function sfxForLogEntry(entry: BattleLogEntry): SfxId {
+  switch (entry.kind) {
+    case 'attack':
+      return entry.defeated ? 'success' : entry.healed ? 'confirm' : 'blip';
+    case 'flee':
+      return 'cancel';
+    case 'dodge':
+      return 'fail';
+    case 'charm':
+      if (!entry.allyId) return 'cancel';
+      return entry.allyDefeated ? 'success' : 'blip';
+    case 'curse':
+      return 'confirm';
+  }
 }
 
 /**
@@ -352,6 +384,19 @@ export function BattleView() {
     return () => stopBattleMusic();
   }, []);
 
+  // Per-attack sound cue (`sfxForLogEntry` above) — real user-facing gap: battle actions
+  // had no audio feedback of their own, only the ambient music track. Keyed on the log's
+  // *length*, not its last entry, so this only fires for a genuinely new entry, not a
+  // re-render; covers the player's own attacks and the enemy's alike, since
+  // `battleRunEnemyTurn` appends to this same `battle.log`, so one effect handles both
+  // instead of needing a second copy wired into the enemy-turn effect above.
+  const battleLogLength = battleForEffect?.log.length ?? 0;
+  useEffect(() => {
+    if (!battleForEffect || battleLogLength === 0) return;
+    const entry = battleForEffect.log[battleLogLength - 1];
+    if (entry) playSfx(sfxForLogEntry(entry));
+  }, [battleForEffect, battleLogLength]);
+
   // The scrolling battle camera (user feedback: "make the battle much bigger and we
   // could scroll the map like in Shining Force" — `useBattleCamera.ts`/`battleCamera.ts`).
   // Every hook below has to run unconditionally, same reason as the two effects above,
@@ -417,10 +462,19 @@ export function BattleView() {
     const key = posKey(x, y);
     const occupant = living.find((u) => u.pos.x === x && u.pos.y === y);
     if (occupant && targetIds.has(occupant.id)) {
+      // No `playSfx` call here — the log-watching effect above already covers every
+      // attack (player's and enemy's alike) from `battle.log`, so adding one here would
+      // just double it up.
       battleAttack(occupant.id);
       return;
     }
-    if (reachableKeys.has(key)) battleMove({ x, y });
+    // Moves don't append a `BattleLogEntry` (only combat actions do), so this is the one
+    // battle sound that has to fire from the click itself rather than the log effect —
+    // same lightweight `blip` the rest of the UI already uses for "a click did something."
+    if (reachableKeys.has(key)) {
+      playSfx('blip');
+      battleMove({ x, y });
+    }
   };
 
   const handleViewportKeyDown = (event: KeyboardEvent) => {

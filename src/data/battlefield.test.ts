@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { tileAt } from '@/engine/movement';
+import { SWITCHABLE_CHARACTERS } from '@/store/gameStore';
+import { BATTLE_ROSTERS } from './battleRosters';
 import {
   BATTLEFIELD,
   BATTLEFIELD_HEIGHT,
@@ -33,10 +35,20 @@ describe('BATTLEFIELD', () => {
   });
 
   it('has at least as many spawn slots as the largest roster needs', () => {
-    // Canada's roster (data/battleRosters.ts) has 7 units — the largest, since Jagmeet
-    // Singh joined it. All 6 US officials fight together too (gameStore's
-    // SWITCHABLE_CHARACTERS), so the US side still only needs 6 slots.
-    expect(US_SPAWN_POSITIONS.length).toBeGreaterThanOrEqual(6);
-    expect(ENEMY_SPAWN_POSITIONS.length).toBeGreaterThanOrEqual(7);
+    // Checked against the real current data, not a hardcoded number — real bug found on
+    // a polish pass: `store/gameStore.ts`'s `selectBattleCountry` indexes
+    // `US_SPAWN_POSITIONS[i]`/`ENEMY_SPAWN_POSITIONS[i]` with an unchecked `as
+    // GridPosition` cast (past `noUncheckedIndexedAccess`), so a roster that ever grew
+    // past its side's spawn count would silently produce `undefined` there instead of a
+    // caught error — it would only surface later, confusingly, wherever that unit's
+    // position is first read. This test is what makes that impossible: it fails loudly,
+    // at test time, the moment either side's spawn capacity stops covering its roster,
+    // rather than leaving the invariant as an unenforced comment (which is what let a
+    // stale "7" linger here before — Canada's own roster already grew once this
+    // session, from 6 to 7, when Jagmeet Singh joined it).
+    expect(US_SPAWN_POSITIONS.length).toBeGreaterThanOrEqual(SWITCHABLE_CHARACTERS.length);
+    for (const roster of Object.values(BATTLE_ROSTERS)) {
+      expect(ENEMY_SPAWN_POSITIONS.length).toBeGreaterThanOrEqual(roster.length);
+    }
   });
 });

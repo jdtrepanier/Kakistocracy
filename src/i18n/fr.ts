@@ -43,6 +43,11 @@ export const fr: Messages = {
   'room.window.label': 'Pièce actuelle',
   'room.viewport.label': 'Pièce — flèches ou WASD pour se déplacer',
   'room.hint.object': 'Appuyez sur DÉCRET pour agir ici',
+  'room.dpad.label': 'Déplacer',
+  'room.dpad.up': 'Aller en haut',
+  'room.dpad.down': 'Aller en bas',
+  'room.dpad.left': 'Aller à gauche',
+  'room.dpad.right': 'Aller à droite',
 
   'menu.label': 'Actions',
   'menu.decree': 'DÉCRET',

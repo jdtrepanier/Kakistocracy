@@ -58,8 +58,43 @@ const JINGLES: Readonly<Record<SfxId, readonly Note[]>> = {
   ],
 };
 
+/** Same `localStorage`-with-try/catch persistence pattern `store/gameStore.ts` already
+ * uses for `LANG_STORAGE_KEY`/`SAVE_STORAGE_KEY` (same `maga.` key prefix) — mute stays
+ * out of the game save itself (`MuteToggle`'s doc comment: it's a browser-tab
+ * preference, not part of a run) but still deserves to survive a reload/relaunch the
+ * same way the language choice does, rather than silently re-enabling every sound the
+ * instant the player refreshes. Real gap found on a small polish pass: there was no
+ * persistence at all before this, so muting only ever lasted until the next reload. */
+const MUTE_STORAGE_KEY = 'maga.muted';
+
+function initialMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTE_STORAGE_KEY) === '1';
+  } catch {
+    // Storage can be unavailable (private mode, blocked cookies): default to unmuted,
+    // same fallback posture as `initialLang`'s English default.
+    return false;
+  }
+}
+
+function saveMuted(next: boolean): void {
+  try {
+    if (next) {
+      localStorage.setItem(MUTE_STORAGE_KEY, '1');
+    } else {
+      // Removed rather than written as '0' so a very old saved value can never linger
+      // as a stale truthy-looking string — "not present" and "unmuted" are the same
+      // state here, same as `clearSave`'s `removeItem` elsewhere in this codebase.
+      localStorage.removeItem(MUTE_STORAGE_KEY);
+    }
+  } catch {
+    // Not critical: the preference just won't be remembered — same posture as
+    // `saveLang` next to it in `gameStore.ts`.
+  }
+}
+
 let ctx: AudioContext | null = null;
-let muted = false;
+let muted = initialMuted();
 let ambient: { readonly oscillators: readonly OscillatorNode[]; readonly gain: GainNode } | null =
   null;
 let battleMusic: HTMLAudioElement | null = null;
@@ -191,6 +226,7 @@ export function isMuted(): boolean {
  * off, if one is currently set up (`playBattleMusic`). */
 export function setMuted(next: boolean): void {
   muted = next;
+  saveMuted(next);
   if (muted) {
     stopAmbientHum();
     battleMusic?.pause();

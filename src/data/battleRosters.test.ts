@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COUNTRIES } from './countries';
 import { BATTLE_ROSTERS, US_BATTLE_UNITS, getBattleRoster } from './battleRosters';
+import { ENEMY_SPAWN_POSITIONS } from './battlefield';
 
 describe('US_BATTLE_UNITS', () => {
   it('has combat stats for every character, keyed by their own id, with no nameKey', () => {
@@ -37,9 +38,14 @@ describe('BATTLE_ROSTERS', () => {
     expect(new Set(allIds).size).toBe(allIds.length);
   });
 
-  it("doesn't exceed the battlefield's enemy spawn capacity (7 slots)", () => {
+  it("doesn't exceed the battlefield's enemy spawn capacity", () => {
+    // Checked against the real `ENEMY_SPAWN_POSITIONS.length`, not a hardcoded "7" —
+    // `battlefield.test.ts` has the fuller version of this same invariant (plus the US
+    // side); kept here too as a second, independent check from the roster's own test
+    // file, same belt-and-suspenders reasoning as testing a shared invariant from both
+    // sides of it.
     for (const roster of Object.values(BATTLE_ROSTERS)) {
-      expect(roster.length).toBeLessThanOrEqual(7);
+      expect(roster.length).toBeLessThanOrEqual(ENEMY_SPAWN_POSITIONS.length);
     }
   });
 
