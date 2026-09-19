@@ -68,10 +68,17 @@
   gap: 3px;
 }
 
+/* Two lines per unit now (user feedback: "I would prefer the HP/MP be on a line below
+ * the name") — `.battle-roster-top` (swatch + name) stacked over `.battle-stat-col` (HP
+ * bar/value, MP pips), instead of one cramped flex row. Used to be a single
+ * `display:flex; align-items:center` row with the name squeezed between a fixed-width
+ * swatch and a fixed-width stat column inside this panel's 92px width — that left almost
+ * no room for `.battle-roster-name`, so most names ellipsized after two or three letters
+ * ("Po...", "Ha..."). */
 .battle-roster-row {
   display: flex;
-  align-items: center;
-  gap: 3px;
+  flex-direction: column;
+  gap: 2px;
   padding: 2px;
   background: var(--navy-dark);
   border: 1px solid transparent;
@@ -83,6 +90,12 @@
 
 .battle-roster-row.is-defeated {
   opacity: 0.4;
+}
+
+.battle-roster-top {
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .battle-roster-swatch {
@@ -109,14 +122,16 @@
 }
 
 /* HP (the composure bar) stacked over MP (magic pips, only for a unit with `magic` —
- * Carney/Melania) — "let's see HP and MP" (user feedback). Kept as its own narrow
- * column so a non-magic unit's row doesn't grow: `.battle-stat-row` for MP is only ever
- * rendered when there's a pip to show. */
+ * Carney/Melania) — "let's see HP and MP" (user feedback). Now its own full-width line
+ * below the name (see `.battle-roster-row` above) rather than a narrow trailing column,
+ * so the bar gets to be wider/more readable too: `.battle-stat-row` for MP is only ever
+ * rendered when there's a pip to show. Indented by `padding-left` to roughly line up
+ * under the name text rather than under the swatch. */
 .battle-stat-col {
-  flex: none;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  padding-left: 15px;
 }
 
 .battle-stat-row {
@@ -134,8 +149,8 @@
 }
 
 .battle-composure-bar {
-  flex: none;
-  width: 26px;
+  flex: 1;
+  min-width: 0;
   height: 4px;
   background: var(--navy);
   border: 1px solid var(--black);
@@ -209,10 +224,21 @@
  * `.battle-unit-flag` and `.battle-unit-current-marker` below. Used to be a single
  * sprite element with a box-shadow rectangle drawn around it for side/current-turn
  * (removed: real user feedback said it read as a loud rectangle over the character art
- * once real sprites replaced the placeholder squares it was designed for). */
+ * once real sprites replaced the placeholder squares it was designed for).
+ *
+ * Width bumped 18px → 26px (comfortably inside a 32px-wide iso tile, `ISO_TILE_WIDTH`)
+ * once a wide-pose sprite (Sugar Shack Guy, holding a stick and bucket out from his
+ * body) and non-humanoid animal sprites (Greenland's bears/seals, much wider than tall)
+ * entered the roster — `.battle-unit-sprite`'s `object-fit: contain` means a sprite
+ * *wider* than its box doesn't overflow it, it renders visibly *shorter* than its
+ * teammates instead, since `contain` always fits to the tighter-constraining dimension.
+ * The old 18px box (aspect ~0.43) was really only tuned for the original humanoid
+ * officials, who all happen to share a similar upright aspect ratio; widening the box
+ * doesn't change how they render (they were already height-constrained and centered),
+ * it only gives headroom to wider poses so they aren't penalized for existing. */
 .battle-unit-iso {
   position: absolute;
-  width: 18px;
+  width: 26px;
   height: 56px;
   display: flex;
   flex-direction: column;
@@ -225,10 +251,26 @@
  * items with `z-index: auto` (the default) paint in *layout* order, not DOM order, so
  * putting the oval earlier in the markup does not by itself make the sprite paint on
  * top of it where they overlap. An explicit, non-`auto` `z-index` on both opts them out
- * of that layout-order-based stacking and into ordinary numeric comparison instead. */
+ * of that layout-order-based stacking and into ordinary numeric comparison instead.
+ *
+ * `object-position: bottom` (user report, screenshot: "the seal and polar bear... are
+ * not over their pastille" — the flag/badge below rendered floating well under the
+ * animal's actual feet). The original humanoid roster is all tall-and-narrow, so under
+ * `object-fit: contain` in this 26px-wide box they're *height*-constrained — they fill
+ * the full 42px box top-to-bottom, so their feet always land right at the box's bottom
+ * edge, which is exactly where `.battle-unit-flag`'s negative `margin-top` below expects
+ * them. Greenland's bear/seal art is much closer to square (the seal is actually wider
+ * than tall), so it's *width*-constrained instead: at 26px wide the bear renders only
+ * ~27px tall and the seal only ~19px tall, and `object-fit`'s implicit default position
+ * (dead center) let that render float in the middle of the 42px box, leaving a large gap
+ * of empty box below its visible feet — right where the flag/badge was still anchored,
+ * reading as "disconnected." Anchoring to the bottom instead means any sprite's visible
+ * feet — tall/narrow or short/wide alike — always sit at the box's bottom edge, so the
+ * flag/badge's tuning-for-humanoids offset keeps working for every sprite regardless of
+ * source aspect ratio. */
 .battle-unit-sprite {
   z-index: 2;
-  width: 18px;
+  width: 26px;
   height: 42px;
   display: flex;
   align-items: center;
@@ -237,7 +279,21 @@
   font-size: 6px;
   box-sizing: border-box;
   object-fit: contain;
+  object-position: bottom;
   image-rendering: pixelated;
+  transition: opacity 150ms ease;
+}
+
+/* Real user feedback, screenshot of the spawn formation: a front-row unit's tall sprite
+ * completely hid the face of a teammate standing diagonally behind it ("can we try to
+ * detect sprite from our own team that block our view. We could make them semi-
+ * transparent while we play") — `ui/battle/spriteOcclusion.ts` detects this from unit
+ * positions alone (no DOM measurement) and `BattleUnitToken` (`BattleView.tsx`) adds
+ * this class to the front unit's sprite only, not its flag/badge or turn marker, so the
+ * "who's on this tile" and "whose turn is it" reads stay fully visible even while the
+ * character art itself fades to let you see who's standing behind them. */
+.battle-unit-sprite.is-occluding {
+  opacity: 0.4;
 }
 
 .battle-unit-placeholder {

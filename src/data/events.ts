@@ -204,6 +204,22 @@ export const EVENTS: readonly EventDef[] = [
     ],
   },
   {
+    id: 'canada_joins_eu',
+    nameKey: 'event.canadaJoinsEu.name',
+    // Real weight class for a big, embarrassing geopolitical stunt — same tier as
+    // `foreign_crisis`/`weather_balloon_panic`, rather than an everyday news-cycle item.
+    // Not gated on anything: the war/purchase system tracks `atWarWith`/`countriesOwned`
+    // (`engine/types.ts`), not a flag, so there's no existing hook to require "Canada is
+    // at war" or "Canada owned" here without a bigger change to that system — this is a
+    // flat random headline, same as `foreign_crisis` or `tariff_retaliation` above.
+    weight: 5,
+    effects: [
+      { kind: 'delta', stat: 'headlines', amount: 12 },
+      { kind: 'delta', stat: 'happiness', amount: -4 },
+      { kind: 'delta', stat: 'defcon', amount: -1 },
+    ],
+  },
+  {
     id: 'weather_balloon_panic',
     nameKey: 'event.weatherBalloonPanic.name',
     weight: 7,

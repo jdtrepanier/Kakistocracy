@@ -7,7 +7,24 @@ export type CharacterId = 'trump' | 'vance' | 'bessent' | 'lutnick' | 'melania' 
 
 /** World Map targets (GAME_PLAN §10 "World Map menu"). See `data/countries.ts`. */
 export type CountryId =
-  'canada' | 'greenland' | 'panama' | 'mexico' | 'iran' | 'venezuela' | 'russia';
+  | 'canada'
+  | 'greenland'
+  | 'panama'
+  | 'mexico'
+  | 'iran'
+  | 'venezuela'
+  | 'russia';
+
+/** `rename_landmark` targets, picked on the same World Map (GAME_PLAN §10). See
+ * `data/landmarks.ts`. */
+export type LandmarkId =
+  | 'gulfOfMexico'
+  | 'denali'
+  | 'niagaraFalls'
+  | 'grandCanyon'
+  | 'lakeMichigan'
+  | 'pacificOcean'
+  | 'mississippiRiver';
 
 /** A month on the game calendar. `month` is 1–12. */
 export interface GameDate {
@@ -19,7 +36,7 @@ export type StatKey =
   | 'debt' // trillions of dollars
   | 'interestRate' // percent
   | 'inflation' // official, percent
-  | 'feltInflation' // what people feel (hidden on the HUD), percent
+  | 'feltInflation' // what people feel — drives Happiness/hyperinflation — percent
   | 'iq' // Party IQ
   | 'happiness' // percent
   | 'defcon' // 5 = calm … 1 = Nuclear Meltdown
@@ -66,7 +83,18 @@ export type Effect =
    * tactical battle flow, which knows the target before the roll (see `engine/battle.ts`). */
   | { readonly kind: 'declareWarOn'; readonly country: CountryId }
   /** Picks a random not-yet-owned purchasable country and adds it to `countriesOwned`. */
-  | { readonly kind: 'purchaseCountry' };
+  | { readonly kind: 'purchaseCountry' }
+  /** Picks a random not-yet-renamed landmark and adds it to `renamedLandmarks` (GAME_PLAN
+   * §9/§10, `rename_landmark`) — same "instant, no target picked" shape as `declareWar`,
+   * used as the graceful-degradation fallback once every landmark is already renamed (see
+   * `store/gameStore.ts`'s `confirmPreview`). Superseded in the normal case by
+   * `renameLandmarkOn`, substituted in once the player picks a landmark on the World Map
+   * (real user feedback: "it would be nice to be able to select what you want to rename on
+   * the map" — same ask, and the same fix shape, as `declareWar`/`declareWarOn` got
+   * earlier for Declare War). */
+  | { readonly kind: 'renameLandmark' }
+  /** Adds a specific, already-picked landmark to `renamedLandmarks` (idempotent). */
+  | { readonly kind: 'renameLandmarkOn'; readonly landmark: LandmarkId };
 
 /** An effect waiting in the queue, applied at a future month-end. */
 export interface PendingEffect {
@@ -76,7 +104,12 @@ export interface PendingEffect {
 }
 
 export type LossEnding =
-  'bankruptcy' | 'revolt' | 'nuclear' | 'hyperinflation' | 'brainFreeze' | 'impeachment';
+  | 'bankruptcy'
+  | 'revolt'
+  | 'nuclear'
+  | 'hyperinflation'
+  | 'brainFreeze'
+  | 'impeachment';
 
 export type EndingId = LossEnding | 'survived';
 
@@ -103,14 +136,15 @@ export interface GameState {
    * once rooms and switching officials land in Phase 2.
    */
   readonly actionsUsedThisMonth: readonly string[];
-  /** True while Bessent's "Reveal" (or an event) exposes the felt inflation. */
-  readonly feltInflationRevealed: boolean;
   readonly pending: readonly PendingEffect[];
   readonly flags: readonly string[];
   /** Countries the `declareWar` effect has hit so far (GAME_PLAN "World Map menu"). */
   readonly atWarWith: readonly CountryId[];
   /** Countries the `purchaseCountry` effect has successfully bought. */
   readonly countriesOwned: readonly CountryId[];
+  /** Landmarks the `renameLandmark`/`renameLandmarkOn` effect has renamed to "America" so
+   * far (GAME_PLAN "World Map menu"). */
+  readonly renamedLandmarks: readonly LandmarkId[];
   /** Every resolved action, oldest first. */
   readonly history: readonly ActionLogEntry[];
   /** DEFCON value at the start of the current month, for the "no escalation" recovery rule. */
@@ -127,5 +161,14 @@ export interface GameState {
    * `checkElonRage` in `engine/effects.ts`. Not a `StatKey`/`NationStats` value: it's a
    * cabinet-member mechanic, not a national stat shown on the HUD. */
   readonly elonRage: number;
+  /** Hidden geopolitical oil-market pressure (0 = neutral), driven only by the outcome of
+   * a Declare-War-on-Iran battle (user feedback: "When you attack Iran, if you lose, huge
+   * increase in oil price. You win, oil price goes down.") — see `engine/effects.ts`'s
+   * `applyOilPriceShock` and `engine/economy.ts`'s monthly decay/feltInflation nudge. Not
+   * a `StatKey`/`NationStats` value and never shown on the HUD (same "cabinet-adjacent
+   * mechanic, not a national stat" category as `elonRage` above) — the player only ever
+   * feels it through Felt Inflation drifting up (a loss) or easing (a win) over the
+   * following months, never as a number of its own. */
+  readonly oilPriceIndex: number;
   readonly ending: EndingId | null;
 }

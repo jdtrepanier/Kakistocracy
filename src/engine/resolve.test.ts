@@ -240,4 +240,37 @@ describe('resolveBattleAction', () => {
     const ended = { ...createInitialState(1), ending: 'bankruptcy' as const };
     expect(() => resolveBattleAction(ended, declareWar, true, 'canada', 999)).toThrow();
   });
+
+  it('leaves the oil-price index untouched for a non-Iran war, win or lose', () => {
+    const state = createInitialState(1);
+    const won = resolveBattleAction(state, declareWar, true, 'canada', 999);
+    const lost = resolveBattleAction(state, declareWar, false, 'canada', 999);
+    expect(won.state.oilPriceIndex).toBe(0);
+    expect(lost.state.oilPriceIndex).toBe(0);
+  });
+
+  it('spikes the oil-price index on an Iran loss and eases it on an Iran win (user feedback)', () => {
+    const state = createInitialState(1);
+    const lost = resolveBattleAction(state, declareWar, false, 'iran', 999);
+    expect(lost.state.oilPriceIndex).toBe(BALANCE.oilPrice.lossJolt);
+
+    const won = resolveBattleAction(state, declareWar, true, 'iran', 999);
+    expect(won.state.oilPriceIndex).toBe(BALANCE.oilPrice.winRelief);
+  });
+
+  it('clamps the oil-price index to ±maxIndex across repeated Iran losses', () => {
+    let state = createInitialState(1);
+    for (let i = 0; i < 20; i += 1) {
+      // Refill EA each iteration — this loop is only exercising the oil-price clamp
+      // across many battle outcomes, not actually spending down a real run's actions.
+      state = resolveBattleAction(
+        { ...state, actionsLeft: declareWar.cost.ea },
+        declareWar,
+        false,
+        'iran',
+        999,
+      ).state;
+    }
+    expect(state.oilPriceIndex).toBe(BALANCE.oilPrice.maxIndex);
+  });
 });

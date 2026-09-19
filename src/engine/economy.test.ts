@@ -279,3 +279,39 @@ describe('tickMonth: Executive Action refill modifiers (GAME_PLAN §9)', () => {
     expect(next.flags).toEqual(['goldenDomeActive']);
   });
 });
+
+describe('tickMonth: hidden oil-price index (Iran war outcome, user feedback)', () => {
+  it('does nothing extra when the index is neutral (matches the plain "no actions" baseline)', () => {
+    const withIndex = tickMonth({ ...createInitialState(1), oilPriceIndex: 0 });
+    const plain = tickMonth(createInitialState(1));
+    expect(withIndex.stats.feltInflation).toBe(plain.stats.feltInflation);
+    expect(withIndex.oilPriceIndex).toBe(0);
+  });
+
+  it('nudges Felt Inflation up while a losing shock is still elevated', () => {
+    const withShock = tickMonth({ ...createInitialState(1), oilPriceIndex: 30 });
+    const baseline = tickMonth(createInitialState(1));
+    expect(withShock.stats.feltInflation).toBeGreaterThan(baseline.stats.feltInflation);
+  });
+
+  it("nudges Felt Inflation down while a win's relief is still in effect", () => {
+    const withRelief = tickMonth({ ...createInitialState(1), oilPriceIndex: -15 });
+    const baseline = tickMonth(createInitialState(1));
+    expect(withRelief.stats.feltInflation).toBeLessThan(baseline.stats.feltInflation);
+  });
+
+  it('decays the index toward 0 by decayFactor every month, and it fades out entirely', () => {
+    const state: GameState = { ...createInitialState(1), oilPriceIndex: 30 };
+    const afterOne = tickMonth(state);
+    expect(afterOne.oilPriceIndex).toBeCloseTo(30 * BALANCE.oilPrice.decayFactor, 5);
+
+    const faded = tickTimes(state, 100);
+    expect(faded.oilPriceIndex).toBe(0);
+  });
+
+  it('decays a negative (post-win) index back toward 0 the same way', () => {
+    const state: GameState = { ...createInitialState(1), oilPriceIndex: -15 };
+    const afterOne = tickMonth(state);
+    expect(afterOne.oilPriceIndex).toBeCloseTo(-15 * BALANCE.oilPrice.decayFactor, 5);
+  });
+});

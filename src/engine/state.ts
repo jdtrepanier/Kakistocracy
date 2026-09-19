@@ -12,11 +12,11 @@ export function createInitialState(seed: number, balance: Balance = BALANCE): Ga
     stats: { ...balance.start },
     actionsLeft: balance.actionsPerMonth,
     actionsUsedThisMonth: [],
-    feltInflationRevealed: false,
     pending: [],
     flags: [],
     atWarWith: [],
     countriesOwned: [],
+    renamedLandmarks: [],
     history: [],
     defconMonthStart: balance.start.defcon,
     defconCalmStreak: 0,
@@ -24,6 +24,7 @@ export function createInitialState(seed: number, balance: Balance = BALANCE): Ga
     congressLost: false,
     lowHappinessStreak: 0,
     elonRage: 0,
+    oilPriceIndex: 0,
     ending: null,
   };
 }

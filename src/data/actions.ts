@@ -82,6 +82,16 @@ export const ACTIONS: readonly ActionDef[] = [
         then: [{ kind: 'delta', stat: 'happiness', amount: 1 }],
         else: [{ kind: 'delta', stat: 'happiness', amount: -1 }],
       },
+      // The generic pick — real user feedback ("it would be nice to be able to select
+      // what you want to rename on the map") means this almost always arrives already
+      // substituted into a `renameLandmarkOn` by `resolveLandmarkEffects`
+      // (`store/gameStore.ts`'s `selectLandmark`, `SelectLandmarkScreen.tsx`, same shape
+      // as `declare_war`/`declareWar`). Left as the plain random-pick kind here, not
+      // `renameLandmarkOn`, so it still degrades gracefully to an instant random rename
+      // in the one case nothing was picked: every landmark on `data/landmarks.ts`'s list
+      // is already renamed (`confirmPreview`'s fallback, mirroring `declare_war`'s own
+      // "every eligible country already hit" fallback).
+      { kind: 'renameLandmark' },
     ],
     onFail: [{ kind: 'delta', stat: 'iq', amount: -1 }],
     headlines: 25,

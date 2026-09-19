@@ -1,7 +1,8 @@
 import type { Balance } from '@/data/balance';
 import { pickRandomCountry, type CountryDef } from '@/data/countries';
+import { pickRandomLandmark } from '@/data/landmarks';
 import type { Rng } from './rng';
-import type { CountryId, Effect, NationStats, PendingEffect, StatKey } from './types';
+import type { CountryId, Effect, LandmarkId, NationStats, PendingEffect, StatKey } from './types';
 
 /** The mutable-looking (but always-copied) part of state that effects can change. */
 export interface EffectContext {
@@ -10,6 +11,7 @@ export interface EffectContext {
   readonly flags: readonly string[];
   readonly atWarWith: readonly CountryId[];
   readonly countriesOwned: readonly CountryId[];
+  readonly renamedLandmarks: readonly LandmarkId[];
   readonly elonRage: number;
 }
 
@@ -45,6 +47,18 @@ function addRandomCountry(
 /** Adds a specific, already-decided country to `taken` if it isn't already there. */
 function addCountry(taken: readonly CountryId[], country: CountryId): readonly CountryId[] {
   return taken.includes(country) ? taken : [...taken, country];
+}
+
+/** Adds a random not-yet-renamed landmark to `taken` (see `data/landmarks.ts`'s doc
+ * comment), or leaves it unchanged once every landmark has been renamed. */
+function addRandomLandmark(taken: readonly LandmarkId[], rng: Rng): readonly LandmarkId[] {
+  const picked = pickRandomLandmark(taken, rng);
+  return picked === null ? taken : addLandmark(taken, picked);
+}
+
+/** Adds a specific, already-decided landmark to `taken` if it isn't already there. */
+function addLandmark(taken: readonly LandmarkId[], landmark: LandmarkId): readonly LandmarkId[] {
+  return taken.includes(landmark) ? taken : [...taken, landmark];
 }
 
 /** Clamps a stat to the range declared in `balance.statBounds` (GAME_PLAN §4). */
@@ -130,6 +144,12 @@ export function applyEffect(
         ...ctx,
         countriesOwned: addRandomCountry(ctx.countriesOwned, (c) => c.purchasable, rng),
       };
+
+    case 'renameLandmark':
+      return { ...ctx, renamedLandmarks: addRandomLandmark(ctx.renamedLandmarks, rng) };
+
+    case 'renameLandmarkOn':
+      return { ...ctx, renamedLandmarks: addLandmark(ctx.renamedLandmarks, effect.landmark) };
   }
 }
 
@@ -165,6 +185,56 @@ export function resolveWarEffects(
     }
     return effect;
   });
+}
+
+/**
+ * Replaces every generic `{ kind: 'renameLandmark' }` in `effects` with a deterministic
+ * `{ kind: 'renameLandmarkOn', landmark }`, recursing into `chance` branches — same shape
+ * as `resolveWarEffects` above, for the same reason: `rename_landmark` asks the player to
+ * pick a landmark on the World Map before rolling (`store/gameStore.ts`'s
+ * `selectLandmark`, `ui/screens/SelectLandmarkScreen.tsx`), so the landmark that actually
+ * gets renamed is the one the player picked, not a fresh random one at resolve time.
+ */
+export function resolveLandmarkEffects(
+  effects: readonly Effect[],
+  landmark: LandmarkId,
+): readonly Effect[] {
+  return effects.map((effect): Effect => {
+    if (effect.kind === 'renameLandmark') return { kind: 'renameLandmarkOn', landmark };
+    if (effect.kind === 'chance') {
+      return {
+        ...effect,
+        then: resolveLandmarkEffects(effect.then, landmark),
+        else: effect.else && resolveLandmarkEffects(effect.else, landmark),
+      };
+    }
+    return effect;
+  });
+}
+
+/**
+ * Iran-specific war-outcome shock to the hidden oil-price index (`GameState.oilPriceIndex`
+ * — see its doc comment; user feedback: "When you attack Iran, if you lose, huge increase
+ * in oil price. You win, oil price goes down."). A no-op for every other country — same
+ * "a real-world-tension country gets its own carve-out, never a blanket rule" precedent
+ * `battleRosters.ts`'s real-person overrides already use, just for a mechanic instead of a
+ * sprite. Called directly from `resolve.ts`'s `resolveBattleAction`, outside the generic
+ * `Effect` DSL, since `declare_war`'s own `onSuccess`/`onFail` effect lists are shared by
+ * every war target and have no way to say "only if the target was Iran." Clamped to
+ * `balance.oilPrice.maxIndex` so a losing streak can't compound into an ever-growing
+ * inflation drag forever; `engine/economy.ts`'s `tickMonth` decays it back toward 0 and is
+ * the only place it actually touches a visible stat (Felt Inflation).
+ */
+export function applyOilPriceShock(
+  oilPriceIndex: number,
+  country: CountryId,
+  success: boolean,
+  balance: Balance,
+): number {
+  if (country !== 'iran') return oilPriceIndex;
+  const delta = success ? balance.oilPrice.winRelief : balance.oilPrice.lossJolt;
+  const { maxIndex } = balance.oilPrice;
+  return Math.min(maxIndex, Math.max(-maxIndex, oilPriceIndex + delta));
 }
 
 /**

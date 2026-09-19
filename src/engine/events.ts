@@ -57,6 +57,7 @@ export function rollMonthlyEvent(
     flags: state.flags,
     atWarWith: state.atWarWith,
     countriesOwned: state.countriesOwned,
+    renamedLandmarks: state.renamedLandmarks,
     elonRage: state.elonRage,
   };
   const result = checkElonRage(applyEffects(ctx, picked.effects, rng, balance));
@@ -71,6 +72,7 @@ export function rollMonthlyEvent(
     flags: result.flags,
     atWarWith: result.atWarWith,
     countriesOwned: result.countriesOwned,
+    renamedLandmarks: result.renamedLandmarks,
     elonRage: result.elonRage,
     rngState: rng.state,
   };

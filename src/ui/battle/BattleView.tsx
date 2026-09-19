@@ -11,6 +11,7 @@ import { US_BADGE, US_COLOR, getCountry } from '@/data/countries';
 import {
   currentUnit,
   reachableTiles,
+  spriteForFacing,
   targetsInRange,
   type BattleLogEntry,
   type BattleState,
@@ -32,6 +33,7 @@ import {
 import { useElementSize } from '../room/useElementSize';
 import { useStageScale } from '../useStageScale';
 import { useT, type TFunction } from '../useT';
+import { unitsOccludingActive } from './spriteOcclusion';
 import { useBattleCamera } from './useBattleCamera';
 
 /** Fixed arrow-key pan step, in stage px — one tile's height (`ISO_TILE_HEIGHT`), a
@@ -105,11 +107,19 @@ function sfxForLogEntry(entry: BattleLogEntry): SfxId {
 }
 
 /**
- * One roster row: an HP bar (with the actual number next to it — user feedback asked to
- * be able to see HP, not just infer it from a bar's width) plus, for the two units with
- * a `magic` pool (Carney, Melania), a row of MP pips below it — filled left to right as
+ * One roster row: the swatch and full unit name on their own line, then an HP bar (with
+ * the actual number next to it — user feedback asked to be able to see HP, not just
+ * infer it from a bar's width) on a line below, plus, for the two units with a `magic`
+ * pool (Carney, Melania), a row of MP pips below that — filled left to right as
  * `magicCharge` builds toward `magic.max`, per `engine/battle.ts`'s doc comment.
- */
+ *
+ * Was a single `display:flex` row (swatch + name + stat column all side by side) —
+ * inside the 92px-wide `.battle-roster-compact` panel that squeezed `.battle-roster-name`
+ * down to almost nothing, so most names ellipsized after two or three letters ("Po...",
+ * "Ha..."). User feedback: "I would prefer the HP/MP be on a line below the name."
+ * Splitting the row into a name line (`.battle-roster-top`) and a stats line
+ * (`.battle-stat-col`, now full-width instead of a narrow trailing column) gives the name
+ * the whole panel width to itself. */
 function UnitRow({ unit, isCurrent, t }: { unit: BattleUnit; isCurrent: boolean; t: TFunction }) {
   const pct = Math.round((unit.composure / unit.maxComposure) * 100);
   const classes = [
@@ -122,18 +132,24 @@ function UnitRow({ unit, isCurrent, t }: { unit: BattleUnit; isCurrent: boolean;
 
   return (
     <li className={classes}>
-      {unit.sprite ? (
-        <img className="battle-roster-swatch" src={unit.sprite} alt="" aria-hidden="true" />
-      ) : (
-        <span
-          className="battle-roster-swatch"
-          style={{ background: unit.placeholder.color }}
-          aria-hidden="true"
-        >
-          {unit.placeholder.initials}
-        </span>
-      )}
-      <span className="battle-roster-name">{unitLabel(unit, t)}</span>
+      <span className="battle-roster-top">
+        {unit.sprite ? (
+          // Always the `front` pose here regardless of `unit.facing` — this is a tiny
+          // 12px roster-list icon, not the battlefield token (`BattleUnitToken` below,
+          // which does turn with `spriteForFacing`); animating a thumbnail this small
+          // wouldn't read as anything but flicker.
+          <img className="battle-roster-swatch" src={unit.sprite.front} alt="" aria-hidden="true" />
+        ) : (
+          <span
+            className="battle-roster-swatch"
+            style={{ background: unit.placeholder.color }}
+            aria-hidden="true"
+          >
+            {unit.placeholder.initials}
+          </span>
+        )}
+        <span className="battle-roster-name">{unitLabel(unit, t)}</span>
+      </span>
       <span className="battle-stat-col">
         <span
           className="battle-stat-row"
@@ -153,7 +169,9 @@ function UnitRow({ unit, isCurrent, t }: { unit: BattleUnit; isCurrent: boolean;
               {Array.from({ length: unit.magic.max }, (_, i) => (
                 <span
                   key={i}
-                  className={i < unit.magicCharge ? 'battle-magic-pip is-filled' : 'battle-magic-pip'}
+                  className={
+                    i < unit.magicCharge ? 'battle-magic-pip is-filled' : 'battle-magic-pip'
+                  }
                 />
               ))}
             </span>
@@ -222,18 +240,39 @@ function BattleTile({
   pos,
   point,
   highlight,
+  occupant,
   disabled,
   onClick,
+  t,
 }: {
   tile: TileKind;
   pos: GridPosition;
   point: IsoPoint;
   highlight: 'reachable' | 'attackable' | null;
+  /** The living unit standing on this tile, if any — real accessibility gap found on a
+   * polish pass: every tile's `aria-label` used to be just its raw grid coordinate
+   * (`"5,3"`), so a screen-reader user navigating the battle grid heard an
+   * undifferentiated list of coordinates with no way to tell an empty tile from a
+   * reachable one, an ally, or an attackable enemy — the whole point of the highlight
+   * colors a sighted player relies on. Threading the occupant (and `highlight`) into a
+   * real label fixes that without changing anything visual. */
+  occupant?: BattleUnit;
   disabled: boolean;
   onClick: () => void;
+  t: TFunction;
 }) {
   const depth = isoDepth(pos);
   const key = posKey(pos.x, pos.y);
+  const label = occupant
+    ? t(highlight === 'attackable' ? 'battle.tile.attackable' : 'battle.tile.occupied', {
+        name: unitLabel(occupant, t),
+        x: pos.x,
+        y: pos.y,
+      })
+    : t(highlight === 'reachable' ? 'battle.tile.reachable' : 'battle.tile.empty', {
+        x: pos.x,
+        y: pos.y,
+      });
 
   if (tile === 'wall') {
     return (
@@ -266,7 +305,7 @@ function BattleTile({
       style={{ left: point.x, top: point.y, zIndex: depth * 10 }}
       onClick={onClick}
       disabled={disabled}
-      aria-label={key}
+      aria-label={label}
     />
   );
 }
@@ -294,19 +333,33 @@ function BattleTile({
  * shadow/base it's standing on, rather than the two just sitting stacked with a gap.
  * Falls back to a flat colored oval (`color`) when a country has no `badge` art yet —
  * same "real art if we have it, else a colored placeholder" pattern as the sprite
- * check just above it. */
+ * check just above it.
+ *
+ * The sprite itself picks its pose via `spriteForFacing(unit.sprite, unit.facing)`
+ * rather than always `unit.sprite.front` (user feedback: "it would be nice that the
+ * sprites turns in the direction of where it's going or where it attacks") — `facing`
+ * is real `BattleState` on the unit, turned by `moveUnit`/`attack` in `engine/battle.ts`
+ * itself, so this component stays a dumb renderer of whatever direction the engine says
+ * the unit is currently facing rather than trying to infer it here from position deltas
+ * across renders. */
 function BattleUnitToken({
   unit,
   point,
   isCurrent,
   badge,
   color,
+  isOccluding,
 }: {
   unit: BattleUnit;
   point: IsoPoint;
   isCurrent: boolean;
   badge?: string;
   color: string;
+  /** True when this unit's own sprite is currently covering enough of a teammate
+   * standing behind it to hide their face (`spriteOcclusion.ts`) — fades just the
+   * sprite (`.is-occluding` in `battle.css`), not the flag/badge or turn marker, since
+   * seeing through a teammate's body is the ask, not their pastille or whose turn it is. */
+  isOccluding: boolean;
 }) {
   const depth = isoDepth(unit.pos);
 
@@ -321,10 +374,19 @@ function BattleUnitToken({
         </span>
       )}
       {unit.sprite ? (
-        <img className="battle-unit-sprite" src={unit.sprite} alt="" aria-hidden="true" />
+        <img
+          className={isOccluding ? 'battle-unit-sprite is-occluding' : 'battle-unit-sprite'}
+          src={spriteForFacing(unit.sprite, unit.facing)}
+          alt=""
+          aria-hidden="true"
+        />
       ) : (
         <div
-          className="battle-unit-sprite battle-unit-placeholder"
+          className={
+            isOccluding
+              ? 'battle-unit-sprite battle-unit-placeholder is-occluding'
+              : 'battle-unit-sprite battle-unit-placeholder'
+          }
           style={{ background: unit.placeholder.color }}
           aria-hidden="true"
         >
@@ -452,6 +514,18 @@ export function BattleView() {
   const usUnits = battle.units.filter((u) => u.side === 'us');
   const enemyUnits = battle.units.filter((u) => u.side === 'enemy');
   const living = battle.units.filter((u) => u.composure > 0);
+  // Real user feedback, screenshot of the spawn formation: a front-row unit's tall
+  // sprite completely hid a teammate standing diagonally behind it. Originally checked
+  // every pair on the field (`occludingUnitIds`), but a later round of feedback narrowed
+  // the scope: "The only [units] in front and around the USA current playing player
+  // should be semi transparent" — fading some unrelated pair elsewhere on the field read
+  // as distracting noise, since what actually matters is always being able to see the
+  // unit you're currently deciding a move for. `unitsOccludingActive` only looks at
+  // units covering `active` itself. Recomputed every render off `living`'s current
+  // positions (cheap — well under 20 units on the field at once) rather than memoized,
+  // matching this component's existing style of recomputing these small derived
+  // filters/sets fresh each render (`usUnits`/`enemyUnits` above).
+  const occludingIds = unitsOccludingActive(living, active.id);
   const lastLog = battle.log[battle.log.length - 1];
   const enemyCountry = getCountry(resolution.battleCountry);
   const unitColor = (unit: BattleUnit) => (unit.side === 'us' ? US_COLOR : enemyCountry.color);
@@ -575,6 +649,7 @@ export function BattleView() {
                   : reachableKeys.has(key)
                     ? 'reachable'
                     : null;
+                const occupant = living.find((u) => u.pos.x === x && u.pos.y === y);
                 return (
                   <BattleTile
                     key={key}
@@ -582,8 +657,10 @@ export function BattleView() {
                     pos={pos}
                     point={projectIsoWithin(pos, bounds)}
                     highlight={highlight}
+                    occupant={occupant}
                     disabled={!isPlayerTurn}
                     onClick={() => handleTileClick(x, y)}
+                    t={t}
                   />
                 );
               }),
@@ -596,6 +673,12 @@ export function BattleView() {
                 isCurrent={active.id === u.id}
                 badge={unitBadge(u)}
                 color={unitColor(u)}
+                // `occludingIds` (`unitsOccludingActive`, above) never includes
+                // `active.id` itself, so the unit whose turn it is never fades here —
+                // real user report, screenshot mid-battle: "Melania is playing. She
+                // shouldn't be transparent" (she'd been caught by the old whole-roster
+                // occlusion check, which has since been narrowed to just this).
+                isOccluding={occludingIds.has(u.id)}
               />
             ))}
           </div>

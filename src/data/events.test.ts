@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { eligibleEvents, EVENTS, getEvent } from './events';
 
 describe('EVENTS', () => {
-  it('has 23 events with unique ids', () => {
-    expect(EVENTS).toHaveLength(23);
+  it('has 24 events with unique ids', () => {
+    expect(EVENTS).toHaveLength(24);
     expect(new Set(EVENTS.map((e) => e.id)).size).toBe(EVENTS.length);
   });
 

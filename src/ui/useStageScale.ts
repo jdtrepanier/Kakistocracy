@@ -2,8 +2,19 @@ import { useEffect, useState } from 'react';
 import { STAGE_HEIGHT, STAGE_WIDTH } from './constants';
 
 /**
- * Largest whole-number zoom that fits the window, so pixels stay crisp (2×, 3×, 4×…).
- * On screens smaller than the stage (phones), it shrinks to fit instead.
+ * Largest zoom that fits the window, filling as much of the screen as the stage's fixed
+ * 16:9 aspect ratio allows (real user feedback: "the game should take all the screen,
+ * it's too dense"). Used to snap down to the nearest *whole* number (2×, 3×, 4×…) so
+ * every pixel stayed crisp — but on most non-4K windows the nearest whole zoom undershot
+ * the actual fit by a large margin (e.g. a 1512×944 window fits 3.15×, which used to
+ * floor all the way down to a cramped 3× with real unused space on every side), which is
+ * exactly the "too dense" complaint. Now returns the exact fit: `image-rendering:
+ * pixelated` (global.css) keeps the art reasonably crisp at a fractional zoom too, and
+ * filling the window matters more here than perfectly aliased pixel edges. The stage
+ * still can't fill *both* dimensions unless the window happens to be exactly 16:9 —
+ * `Math.min` picks whichever axis is tighter, so some letterboxing on the other axis is
+ * inherent to keeping the pixel art from stretching out of proportion, not a bug. Below
+ * 1× (phones/small windows) this already shrank fractionally; unchanged here.
  */
 export function computeStageScale(
   viewportWidth: number,
@@ -12,8 +23,7 @@ export function computeStageScale(
   height = STAGE_HEIGHT,
 ): number {
   const fit = Math.min(viewportWidth / width, viewportHeight / height);
-  if (!Number.isFinite(fit) || fit <= 0) return 1;
-  return fit < 1 ? fit : Math.floor(fit);
+  return Number.isFinite(fit) && fit > 0 ? fit : 1;
 }
 
 function currentScale(): number {

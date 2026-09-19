@@ -54,7 +54,6 @@ export function Hud() {
   // story — Intern is 4/month, Third Term is 2 — so that one has to go through
   // `getBalance(difficulty)` instead of the always-Normal `BALANCE` constant.
   const year = termYear(date, BALANCE.calendar.start);
-  const felt = game.feltInflationRevealed ? formatPercent(stats.feltInflation) : t('hud.hidden');
 
   return (
     <header className="hud" aria-label={t('hud.label')}>
@@ -75,7 +74,8 @@ export function Hud() {
         label={t('hud.inflation')}
         value={
           <>
-            {formatPercent(stats.inflation)} <span className="hud-felt">{felt}</span>
+            {formatPercent(stats.inflation)}{' '}
+            <span className="hud-felt">{formatPercent(stats.feltInflation)}</span>
           </>
         }
       />

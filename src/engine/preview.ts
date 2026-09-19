@@ -6,7 +6,10 @@ import type { Effect, StatKey } from './types';
  * only — the hopeful outcome — and flags that a gamble exists via `hasChance` rather
  * than trying to average two branches into one misleading number. `declareWar` and
  * `purchaseCountry` don't touch a stat directly (they pick a country at resolve time),
- * so they're surfaced as `hasRandomCountry` instead of a stat delta.
+ * so they're surfaced as `hasRandomCountry` instead of a stat delta. `renameLandmark`
+ * (`rename_landmark`) is the same shape, one level down — a landmark instead of a
+ * country — so it gets its own parallel `hasRandomLandmark` flag rather than being
+ * folded into `hasRandomCountry`, which is specifically about `CountryId` targets.
  */
 export interface EffectSummary {
   /** Stat changes that land the moment the action resolves. */
@@ -17,6 +20,9 @@ export interface EffectSummary {
   readonly hasChance: boolean;
   /** True if `declareWar` or `purchaseCountry` is in the mix (target picked on resolve). */
   readonly hasRandomCountry: boolean;
+  /** True if `renameLandmark` is in the mix (landmark picked on resolve, or on the
+   * World Map first — see `landmarkGated` in `ui/screens/ResolutionOverlay.tsx`). */
+  readonly hasRandomLandmark: boolean;
 }
 
 function addAmount(
@@ -44,6 +50,13 @@ function walk(effects: readonly Effect[], acc: EffectSummary): EffectSummary {
         // Only appears after `resolveWarEffects` has substituted a concrete country in
         // at battle-resolution time — never in the data the Preview window walks.
         return next;
+      case 'renameLandmark':
+        return { ...next, hasRandomLandmark: true };
+      case 'renameLandmarkOn':
+        // Only appears after `resolveLandmarkEffects` has substituted a concrete
+        // landmark in, once the player's picked one on the World Map — same reasoning
+        // as `declareWarOn` just above.
+        return next;
       case 'flag':
       case 'unflag':
       case 'rage':
@@ -53,5 +66,11 @@ function walk(effects: readonly Effect[], acc: EffectSummary): EffectSummary {
 }
 
 export function summarizeEffects(effects: readonly Effect[]): EffectSummary {
-  return walk(effects, { immediate: {}, overTime: {}, hasChance: false, hasRandomCountry: false });
+  return walk(effects, {
+    immediate: {},
+    overTime: {},
+    hasChance: false,
+    hasRandomCountry: false,
+    hasRandomLandmark: false,
+  });
 }

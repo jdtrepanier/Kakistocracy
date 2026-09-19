@@ -3,6 +3,7 @@ import { BALANCE } from '@/data/balance';
 import {
   applyEffect,
   applyEffects,
+  applyOilPriceShock,
   checkElonRage,
   clampStat,
   resolveWarEffects,
@@ -19,6 +20,7 @@ const CTX = (overrides: Partial<EffectContext> = {}): EffectContext => ({
   flags: [],
   atWarWith: [],
   countriesOwned: [],
+  renamedLandmarks: [],
   elonRage: 0,
   ...overrides,
 });
@@ -424,5 +426,30 @@ describe('tickPending', () => {
     const result = tickPending(STATS, [], BALANCE);
     expect(result.stats).toBe(STATS);
     expect(result.pending).toEqual([]);
+  });
+});
+
+describe('applyOilPriceShock', () => {
+  it('is a no-op for every country except Iran, win or lose', () => {
+    expect(applyOilPriceShock(0, 'canada', false, BALANCE)).toBe(0);
+    expect(applyOilPriceShock(0, 'russia', true, BALANCE)).toBe(0);
+    expect(applyOilPriceShock(50, 'venezuela', false, BALANCE)).toBe(50);
+  });
+
+  it('adds the loss jolt on an Iran loss, from any starting index', () => {
+    expect(applyOilPriceShock(0, 'iran', false, BALANCE)).toBe(BALANCE.oilPrice.lossJolt);
+    expect(applyOilPriceShock(10, 'iran', false, BALANCE)).toBe(10 + BALANCE.oilPrice.lossJolt);
+  });
+
+  it('adds the (negative) win relief on an Iran win', () => {
+    expect(applyOilPriceShock(0, 'iran', true, BALANCE)).toBe(BALANCE.oilPrice.winRelief);
+    expect(applyOilPriceShock(10, 'iran', true, BALANCE)).toBe(10 + BALANCE.oilPrice.winRelief);
+  });
+
+  it('clamps to ±maxIndex in either direction', () => {
+    const nearMax = BALANCE.oilPrice.maxIndex - 5;
+    expect(applyOilPriceShock(nearMax, 'iran', false, BALANCE)).toBe(BALANCE.oilPrice.maxIndex);
+    const nearMin = -BALANCE.oilPrice.maxIndex + 5;
+    expect(applyOilPriceShock(nearMin, 'iran', true, BALANCE)).toBe(-BALANCE.oilPrice.maxIndex);
   });
 });

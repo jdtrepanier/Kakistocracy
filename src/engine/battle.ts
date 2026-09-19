@@ -1,5 +1,5 @@
 import type { MessageKey } from '@/i18n/en';
-import { tileAt, type GridPosition, type RoomGrid } from './movement';
+import { tileAt, type Direction, type GridPosition, type RoomGrid } from './movement';
 import { createRng, type Rng } from './rng';
 
 /**
@@ -74,6 +74,20 @@ export interface BattleMagic {
   readonly chance: number;
 }
 
+/** A unit's sprite art for all 4 facings (same 4 poses as `data/characters.ts`'s
+ * `CharacterSprite`, and picked to match the same screen diagonal — see that type's doc
+ * comment). Only `front` is required: most of the roster has all 4 (every US official
+ * and most of Canada's), but a few units only ever got front/back reference art (Jagmeet
+ * Singh: front only; Greenland's bear/seal: front+back, no side view) — `spriteForFacing`
+ * below falls back to `front` for any pose a unit's art doesn't have, so a battle never
+ * renders a blank image, it just doesn't turn for that particular facing. */
+export interface BattleUnitSprite {
+  readonly front: string;
+  readonly back?: string;
+  readonly left?: string;
+  readonly right?: string;
+}
+
 export interface BattleUnitTemplate {
   readonly id: string;
   /** i18n key for this unit's display name — omitted for a US official, whose name
@@ -90,11 +104,13 @@ export interface BattleUnitTemplate {
   readonly power: number;
   readonly maxComposure: number;
   readonly placeholder: { readonly initials: string; readonly color: string };
-  /** Front-facing sprite path, for a unit with real art (`data/characters.ts`'s
-   * `CharacterSprite`, or a literal path for a non-switchable roster). Battle units have no
-   * facing concept, so only the front pose is used; falls back to `placeholder` when
-   * absent. */
-  readonly sprite?: string;
+  /** This unit's sprite art (all 4 facings, see `BattleUnitSprite`), or `undefined` to
+   * fall back to `placeholder`. `moveUnit`/`attack` below turn `BattleUnit.facing` to
+   * match whichever pose here actually gets shown (user feedback: "it would be nice
+   * that the sprites turns in the direction of where it's going or where it attacks" —
+   * before this, every unit always rendered in the `front` pose no matter which way it
+   * moved or who it attacked). */
+  readonly sprite?: BattleUnitSprite;
 
   /** Personal combat quirks — see this file's doc comment. At most one of
    * `fleeChance`/`selfHitChance`/`backstabChance` is ever set per unit (they're
@@ -113,6 +129,14 @@ export interface BattleUnit extends BattleUnitTemplate {
   readonly side: BattleSide;
   readonly composure: number;
   readonly pos: GridPosition;
+  /** Which of `sprite`'s 4 poses this unit is currently shown in — starts facing the
+   * opposing side (`'right'` for `us`, `'left'` for `enemy`; see `createBattle` — real
+   * user feedback, screenshot of a Canada battle at kickoff: everyone facing the camera
+   * regardless of which side of the field they spawned on looked wrong) and only changes
+   * when `moveUnit`/`attack` turn the unit toward where it's actually going/attacking, so
+   * it stays put on every turn the unit doesn't act (e.g. `endTurn` never touches it).
+   * See `spriteForFacing`. */
+  readonly facing: Direction;
   /** Current MP, 0 if this unit has no `magic`. See this file's doc comment. */
   readonly magicCharge: number;
 }
@@ -211,11 +235,18 @@ export function createBattle(
   enemySpawns: readonly BattleSpawn[],
   seed: number,
 ): BattleState {
+  // Spawn already facing the opposing side, not a hardcoded 'down' for everyone
+  // (`data/battlefield.ts`'s doc comment: US spawns on the left, the enemy roster on the
+  // right) — real user feedback, screenshot of a Canada battle at kickoff: "the canadians
+  // characters are not looking at the right direction at the beginning." Units still turn
+  // normally from here via `moveUnit`/`attack` (see `directionTo` below); this only
+  // changes the very first frame, before anyone's moved yet.
   const us: BattleUnit[] = usSpawns.map((s) => ({
     ...s.template,
     side: 'us',
     composure: s.template.maxComposure,
     pos: s.pos,
+    facing: 'right',
     magicCharge: 0,
   }));
   const enemy: BattleUnit[] = enemySpawns.map((s) => ({
@@ -223,6 +254,7 @@ export function createBattle(
     side: 'enemy',
     composure: s.template.maxComposure,
     pos: s.pos,
+    facing: 'left',
     magicCharge: 0,
   }));
 
@@ -282,6 +314,51 @@ function posKey(pos: GridPosition): string {
   return `${pos.x},${pos.y}`;
 }
 
+/** The `Direction` from `from` toward `to`, picking whichever axis has the larger
+ * absolute delta (a tie favors horizontal — arbitrary, but a real tie is rare on this
+ * battlefield's open layout and either choice reads fine). Mirrors `data/
+ * characters.ts`'s existing `Direction`-to-sprite-pose convention, so battle units turn
+ * using the same 4 poses the room camera already uses. `undefined` for a zero delta
+ * (attacking your own tile, which never actually happens — `attack`/`moveUnit` both
+ * fall back to the unit's current `facing` in that case, keeping this total). */
+function directionTo(from: GridPosition, to: GridPosition): Direction | undefined {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (dx === 0 && dy === 0) return undefined;
+  return Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+}
+
+/** Reorients a pure `'up'`/`'down'` facing toward the opposing side instead (user
+ * feedback: "the opponents... should be facing USA" — `directionTo` alone picks
+ * whichever axis has the bigger delta, and once units maneuver off their spawn columns
+ * mid-battle it's common for the *vertical* gap to a move destination or an attack
+ * target to briefly outweigh the horizontal one, turning a unit to face straight up or
+ * down the field instead of toward the opposing formation it's actually standing across
+ * from). US spawns on the left, the enemy roster on the right (`data/battlefield.ts`),
+ * so "facing the opponent" means `'right'` for `us` and `'left'` for `enemy` — the same
+ * mapping `createBattle`'s spawn-facing default already uses. Left/right results pass
+ * through unchanged; only the up/down case gets reoriented. */
+function towardOpponent(direction: Direction, side: BattleSide): Direction {
+  if (direction !== 'up' && direction !== 'down') return direction;
+  return side === 'us' ? 'right' : 'left';
+}
+
+/** Picks `sprite`'s pose matching `facing`, falling back to `front` for any pose the
+ * unit's art doesn't have (see `BattleUnitSprite`'s doc comment) — always a real path,
+ * never `undefined`, since `front` is the one required field. */
+export function spriteForFacing(sprite: BattleUnitSprite, facing: Direction): string {
+  switch (facing) {
+    case 'down':
+      return sprite.front;
+    case 'up':
+      return sprite.back ?? sprite.front;
+    case 'left':
+      return sprite.left ?? sprite.front;
+    case 'right':
+      return sprite.right ?? sprite.front;
+  }
+}
+
 function isOpenTile(state: BattleState, pos: GridPosition, movingUnitId: string): boolean {
   if (tileAt(state.grid, pos) !== 'floor') return false;
   const occupant = unitAt(state, pos);
@@ -314,14 +391,21 @@ export function reachableTiles(state: BattleState, unitId: string): readonly Gri
 }
 
 /** Moves `unitId` to `to` if it's reachable this turn and it hasn't already moved this
- * turn; otherwise a no-op (see `movedThisTurn`). */
+ * turn; otherwise a no-op (see `movedThisTurn`). Also turns the unit to face the
+ * direction of the move (`directionTo`) — a straight-line facing from the old tile to
+ * the new one, not a step-by-step turn through the BFS path, since `to` is reached in a
+ * single click-to-move rather than an animated walk — reoriented toward the opposing
+ * side (`towardOpponent`) whenever that would otherwise be a pure up/down facing. */
 export function moveUnit(state: BattleState, unitId: string, to: GridPosition): BattleState {
   if (state.movedThisTurn) return state;
   const reachable = reachableTiles(state, unitId);
   if (!reachable.some((p) => p.x === to.x && p.y === to.y)) return state;
+  const unit = unitById(state, unitId);
+  const rawFacing = directionTo(unit.pos, to);
+  const facing = rawFacing !== undefined ? towardOpponent(rawFacing, unit.side) : unit.facing;
   return {
     ...state,
-    units: state.units.map((u) => (u.id === unitId ? { ...u, pos: to } : u)),
+    units: state.units.map((u) => (u.id === unitId ? { ...u, pos: to, facing } : u)),
     movedThisTurn: true,
   };
 }
@@ -410,7 +494,11 @@ function castCurse(
   const units = setMagicCharge(state.units, caster.id, 0).map((u) =>
     u.id === target.id ? { ...u, power: cursedPower } : u,
   );
-  const entry: BattleCurseLogEntry = { kind: 'curse', attackerId: caster.id, defenderId: target.id };
+  const entry: BattleCurseLogEntry = {
+    kind: 'curse',
+    attackerId: caster.id,
+    defenderId: target.id,
+  };
   return { state: { ...state, units, rngState: rng.state, log: [...state.log, entry] }, entry };
 }
 
@@ -435,15 +523,31 @@ function rechargeMagic(state: BattleState, unitId: string): BattleState {
  * a flee, a redirected hit, a dodge, or a heal. Doesn't validate range — callers check
  * `targetsInRange`. Always logs exactly one entry and always ends with either a normal
  * `'attack'` or one of the quirk kinds; never a no-op.
+ *
+ * Also turns the attacker to face `defenderId` (the originally-requested target, not
+ * wherever a self-hit/backstab quirk ends up redirecting to — the player/AI is visually
+ * "attacking toward" the unit they actually picked) before anything else happens, so
+ * every branch below — cast, flee, dodge, or a landed hit — comes out already facing
+ * the right way.
  */
 export function attack(
   state: BattleState,
   attackerId: string,
   defenderId: string,
 ): { readonly state: BattleState; readonly entry: BattleLogEntry } {
-  const attacker = unitById(state, attackerId);
+  const attackerBefore = unitById(state, attackerId);
   const requestedDefender = unitById(state, defenderId);
-  const rng = createRng(state.rngState);
+  const rawFacing = directionTo(attackerBefore.pos, requestedDefender.pos);
+  const facing =
+    rawFacing !== undefined
+      ? towardOpponent(rawFacing, attackerBefore.side)
+      : attackerBefore.facing;
+  const faced: BattleState = {
+    ...state,
+    units: state.units.map((u) => (u.id === attackerId ? { ...u, facing } : u)),
+  };
+  const attacker = unitById(faced, attackerId);
+  const rng = createRng(faced.rngState);
 
   if (
     attacker.magic &&
@@ -451,14 +555,14 @@ export function attack(
     rng.chance(attacker.magic.chance)
   ) {
     return attacker.magic.kind === 'charm'
-      ? castCharm(state, rng, attacker, requestedDefender)
-      : castCurse(state, rng, attacker, requestedDefender);
+      ? castCharm(faced, rng, attacker, requestedDefender)
+      : castCurse(faced, rng, attacker, requestedDefender);
   }
 
   if (attacker.fleeChance !== undefined && rng.chance(attacker.fleeChance)) {
     const entry: BattleFleeLogEntry = { kind: 'flee', attackerId, defenderId };
     const next = rechargeMagic(
-      { ...state, rngState: rng.state, log: [...state.log, entry] },
+      { ...faced, rngState: rng.state, log: [...faced.log, entry] },
       attackerId,
     );
     return { state: next, entry };
@@ -468,11 +572,11 @@ export function attack(
   if (attacker.selfHitChance !== undefined && rng.chance(attacker.selfHitChance)) {
     finalDefenderId = attackerId;
   } else if (attacker.backstabChance !== undefined && rng.chance(attacker.backstabChance)) {
-    const allies = livingUnits(state, attacker.side).filter((u) => u.id !== attackerId);
+    const allies = livingUnits(faced, attacker.side).filter((u) => u.id !== attackerId);
     if (allies.length > 0) finalDefenderId = rng.pick(allies).id;
   }
 
-  const defender = unitById(state, finalDefenderId);
+  const defender = unitById(faced, finalDefenderId);
 
   if (defender.dodgeChance !== undefined && rng.chance(defender.dodgeChance)) {
     const entry: BattleDodgeLogEntry = {
@@ -481,7 +585,7 @@ export function attack(
       defenderId: finalDefenderId,
     };
     const next = rechargeMagic(
-      { ...state, rngState: rng.state, log: [...state.log, entry] },
+      { ...faced, rngState: rng.state, log: [...faced.log, entry] },
       attackerId,
     );
     return { state: next, entry };
@@ -489,7 +593,7 @@ export function attack(
 
   const amount = rollDamage(rng, attacker.power);
   const healed = Boolean(defender.healsFromWomen) && Boolean(attacker.isWoman);
-  const units = applyComposureDelta(state.units, finalDefenderId, healed ? amount : -amount);
+  const units = applyComposureDelta(faced.units, finalDefenderId, healed ? amount : -amount);
   const after = units.find((u) => u.id === finalDefenderId);
   const entry: BattleAttackLogEntry = {
     kind: 'attack',
@@ -500,7 +604,7 @@ export function attack(
     healed: healed || undefined,
   };
   const next = rechargeMagic(
-    { ...state, units, rngState: rng.state, log: [...state.log, entry] },
+    { ...faced, units, rngState: rng.state, log: [...faced.log, entry] },
     attackerId,
   );
   return { state: next, entry };

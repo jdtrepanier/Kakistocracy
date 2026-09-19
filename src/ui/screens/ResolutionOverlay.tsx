@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAction } from '@/data/actions';
 import { displayName, getCharacter } from '@/data/characters';
+import { actionHasLandmark } from '@/data/landmarks';
 import { getShowdownForAction } from '@/data/showdowns';
 import { actionHasBattle } from '@/engine/battle';
 import { summarizeEffects, type EffectSummary } from '@/engine/preview';
@@ -15,6 +16,7 @@ import { useT } from '../useT';
 import type { TFunction } from '../useT';
 import { ReportStatsTable } from './ReportStatsTable';
 import { SelectCountryScreen } from './SelectCountryScreen';
+import { SelectLandmarkScreen } from './SelectLandmarkScreen';
 
 /** Felt inflation stays hidden here too (GAME_PLAN §4), same as the month-end report. */
 const HIDDEN_PREVIEW_STATS = new Set<StatKey>(['feltInflation']);
@@ -128,6 +130,7 @@ export function ResolutionOverlay() {
     const chance = computeSuccessChance(action, modifier);
     const summary = summarizeEffects(action.onSuccess);
     const battleGated = actionHasBattle(action.id);
+    const landmarkGated = actionHasLandmark(action.id);
 
     return (
       <div className="menu-overlay resolution-overlay" role="dialog" aria-modal="true">
@@ -152,7 +155,11 @@ export function ResolutionOverlay() {
         {summary.hasRandomCountry && !battleGated && (
           <p className="preview-note">{t('resolution.randomCountryNote')}</p>
         )}
+        {summary.hasRandomLandmark && !landmarkGated && (
+          <p className="preview-note">{t('resolution.randomLandmarkNote')}</p>
+        )}
         {battleGated && <p className="preview-note">{t('battle.selectCountryNote')}</p>}
+        {landmarkGated && <p className="preview-note">{t('landmark.selectNote')}</p>}
         <div className="preview-buttons">
           <button
             type="button"
@@ -181,6 +188,10 @@ export function ResolutionOverlay() {
 
   if (resolution.phase === 'selectCountry') {
     return <SelectCountryScreen />;
+  }
+
+  if (resolution.phase === 'selectLandmark') {
+    return <SelectLandmarkScreen />;
   }
 
   if (resolution.phase === 'battle') {

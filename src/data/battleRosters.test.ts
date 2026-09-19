@@ -84,7 +84,7 @@ describe('BATTLE_ROSTERS', () => {
     const trudeau = canada.find((u) => u.id === 'canada-trudeau');
     const miller = canada.find((u) => u.id === 'canada-miller');
     const leblanc = canada.find((u) => u.id === 'canada-leblanc');
-    const mackinawGuy = canada.find((u) => u.id === 'canada-mackinaw-guy');
+    const sugarShackGuy = canada.find((u) => u.id === 'canada-sugar-shack-guy');
 
     expect(carney?.magic?.kind).toBe('charm');
     expect(trudeau?.healsFromWomen).toBe(true);
@@ -94,7 +94,7 @@ describe('BATTLE_ROSTERS', () => {
     // High HP (Carney) < Really high HP (the wildcard) < neither above the other's
     // baseline-plus-quirk siblings, and Low HP (Trudeau) below the roster's baseline.
     expect(carney?.maxComposure).toBeGreaterThan(miller?.maxComposure ?? 0);
-    expect(mackinawGuy?.maxComposure).toBeGreaterThan(carney?.maxComposure ?? 0);
+    expect(sugarShackGuy?.maxComposure).toBeGreaterThan(carney?.maxComposure ?? 0);
     expect(trudeau?.maxComposure).toBeLessThan(miller?.maxComposure ?? 0);
   });
 });

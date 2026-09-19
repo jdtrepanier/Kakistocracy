@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useGameStore } from './store/gameStore';
 import { STAGE_HEIGHT, STAGE_WIDTH } from './ui/constants';
 import { MuteToggle } from './ui/audio/MuteToggle';
+import { HintButton } from './ui/HintButton';
 import { Hud } from './ui/hud/Hud';
 import { Ticker } from './ui/hud/Ticker';
 import { LangToggle } from './ui/menus/LangToggle';
@@ -47,6 +48,7 @@ export function App() {
           <CurrentScreen />
           <LangToggle />
           <MuteToggle />
+          <HintButton />
           <Ticker />
         </ScreenShake>
       </div>

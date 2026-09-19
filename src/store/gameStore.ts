@@ -5,6 +5,7 @@ import { BATTLEFIELD, ENEMY_SPAWN_POSITIONS, US_SPAWN_POSITIONS } from '@/data/b
 import { getBattleRoster, US_BATTLE_UNITS } from '@/data/battleRosters';
 import { DEFAULT_DIFFICULTY, getBalance, type Balance, type DifficultyId } from '@/data/balance';
 import { COUNTRIES } from '@/data/countries';
+import { actionHasLandmark, LANDMARKS } from '@/data/landmarks';
 import { getRoomLayout, ROOM_LAYOUTS } from '@/data/roomLayouts';
 import { getShowdownForAction } from '@/data/showdowns';
 import {
@@ -25,7 +26,14 @@ import { moveWithin, type Direction, type GridPosition } from '@/engine/movement
 import { resolveAction, resolveBattleAction, type ActionResult } from '@/engine/resolve';
 import { isShowdownComplete, totalShowdownModifier } from '@/engine/showdown';
 import { createInitialState } from '@/engine/state';
-import type { CharacterId, CountryId, GameDate, GameState, NationStats } from '@/engine/types';
+import type {
+  CharacterId,
+  CountryId,
+  GameDate,
+  GameState,
+  LandmarkId,
+  NationStats,
+} from '@/engine/types';
 import type { MessageKey } from '@/i18n/en';
 import { LANGS, type Lang } from '@/i18n/translate';
 
@@ -65,7 +73,13 @@ export const SWITCHABLE_CHARACTERS: readonly CharacterId[] = [
  * battle instead of an instant roll, and finally a result reveal. `null` means no action
  * is currently being resolved.
  */
-export type ResolutionPhase = 'showdown' | 'preview' | 'selectCountry' | 'battle' | 'result';
+export type ResolutionPhase =
+  | 'showdown'
+  | 'preview'
+  | 'selectCountry'
+  | 'selectLandmark'
+  | 'battle'
+  | 'result';
 
 export interface ResolutionState {
   readonly actionId: string;
@@ -84,6 +98,10 @@ export interface ResolutionState {
   /** The country being fought — picked once, before the battle starts, so the target
    * that ends up at war is the one actually fought (see `engine/battle.ts`). */
   readonly battleCountry?: CountryId;
+  /** The landmark picked for a `rename_landmark` resolution, once past the
+   * 'selectLandmark' phase — substituted into the action's `renameLandmark` effect via
+   * `resolveLandmarkEffects` when the roll actually happens (`selectLandmark` below). */
+  readonly landmarkId?: LandmarkId;
   /** Set once the roll (or battle) has actually happened (entering the 'result' phase). */
   readonly result?: ActionResult;
   /** The state to adopt when the player continues past the result box. */
@@ -188,6 +206,11 @@ export interface GameStore {
    * `country.warTarget && !atWarWith.includes(country)` — the UI only offers eligible
    * countries as buttons in the first place. */
   selectBattleCountry: (country: CountryId) => void;
+  /** Picks `landmark` as the target for the currently-resolving `rename_landmark` (only
+   * valid during the 'selectLandmark' phase) and rolls the action against it — a no-op
+   * for an already-renamed landmark, as a last-line sanity check to match the UI, which
+   * only offers not-yet-renamed landmarks as buttons in the first place. */
+  selectLandmark: (landmark: LandmarkId) => void;
   /** Backs out of a showdown, preview, or target selection before the roll happens.
    * Spends nothing. */
   cancelResolution: () => void;
@@ -434,7 +457,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const saved = loadSavedGame();
     if (!saved) return;
     set({
-      game: saved.game,
+      // Older saves (pre–oil-price) won't have this field — fall back rather than let
+      // every economy formula that reads it silently compute with `undefined`.
+      game: { ...saved.game, oilPriceIndex: saved.game.oilPriceIndex ?? 0 },
       monthStartStats: saved.monthStartStats,
       monthLog: saved.monthLog,
       player: saved.player,
@@ -637,6 +662,20 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       // through to the ordinary roll below, same as before battles existed.
     }
 
+    if (actionHasLandmark(action.id)) {
+      const eligible = LANDMARKS.some((l) => !game.renamedLandmarks.includes(l.id));
+      if (eligible) {
+        // Same shape as the battle branch just above (real user feedback: "it would be
+        // nice to be able to select what you want to rename on the map") — the player
+        // picks a landmark; `selectLandmark` actually rolls the action against it.
+        set({ resolution: { ...resolution, phase: 'selectLandmark' } });
+        return;
+      }
+      // Every landmark has already been renamed — nothing left to pick. Fall through to
+      // the ordinary roll below (`{ kind: 'renameLandmark' }` degrades to an instant
+      // no-op random pick in `applyEffect`, same as `declareWar` would here).
+    }
+
     const showdown = getShowdownForAction(resolution.actionId);
     const modifier = showdown ? totalShowdownModifier(showdown, resolution.showdownChoices) : 0;
     const { state, result } = resolveAction(game, action, balance, modifier);
@@ -669,6 +708,22 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         balance,
       ),
     );
+  },
+
+  selectLandmark: (landmark) => {
+    const { resolution, game, difficulty } = get();
+    if (!resolution || resolution.phase !== 'selectLandmark') return;
+    if (game.renamedLandmarks.includes(landmark)) return;
+
+    const balance = getBalance(difficulty);
+    const action = getAction(resolution.actionId);
+    const showdown = getShowdownForAction(resolution.actionId);
+    const modifier = showdown ? totalShowdownModifier(showdown, resolution.showdownChoices) : 0;
+    const { state, result } = resolveAction(game, action, balance, modifier, landmark);
+
+    set({
+      resolution: { ...resolution, phase: 'result', landmarkId: landmark, result, nextGame: state },
+    });
   },
 
   cancelResolution: () => {

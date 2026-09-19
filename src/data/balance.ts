@@ -29,6 +29,36 @@ export interface Balance {
     /** Consecutive months at/under `impeachmentHappiness` (post-midterms) → Impeachment. */
     readonly impeachmentStreakMonths: number;
   };
+  /** Tuning for the Hint button (`engine/hint.ts`) — a "what should I do next"
+   * suggestion, not an ending condition, so it lives in its own block rather than
+   * `thresholds` above. */
+  readonly hint: {
+    /** A stat's danger score (see `engine/hint.ts`'s `suggestAction`, 0 = right where
+     * the run started, 1 = at the ending threshold) must reach this before the Hint
+     * button suggests anything for it at all — below this, every stat is close enough
+     * to its starting value that "you're doing fine" beats pointing at one action. */
+    readonly minDanger: number;
+  };
+  /** Tuning for the hidden Iran-war oil-price mechanic (`GameState.oilPriceIndex`,
+   * `engine/effects.ts`'s `applyOilPriceShock`, `engine/economy.ts`'s monthly drift) —
+   * its own block for the same reason `hint` gets one: not an ending condition, and not
+   * one of the visible HUD stats in `statBounds` below. */
+  readonly oilPrice: {
+    /** Added to the index when a Declare-War-on-Iran battle is lost. */
+    readonly lossJolt: number;
+    /** Added to the index when a Declare-War-on-Iran battle is won (negative — relief). */
+    readonly winRelief: number;
+    /** The index is clamped to ±this after every shock, so a losing streak can't compound
+     * into an ever-growing inflation drag forever. */
+    readonly maxIndex: number;
+    /** Multiplied into the index every month-end (`engine/economy.ts`'s `tickMonth`) so a
+     * shock fades back toward neutral over time rather than persisting forever. */
+    readonly decayFactor: number;
+    /** How much Felt Inflation moves each month per point the index is away from 0 — the
+     * only channel the player actually feels this through (see `GameState.oilPriceIndex`'s
+     * doc comment: there's no HUD number for the index itself). */
+    readonly feltInflationPerPoint: number;
+  };
   /** Min/max every stat is clamped to after any effect (docs §4 "Range" column). */
   readonly statBounds: Readonly<Record<StatKey, { readonly min: number; readonly max: number }>>;
   /**
@@ -88,6 +118,16 @@ export const BALANCE: Balance = {
     meltdownDefcon: 1,
     impeachmentHappiness: 25,
     impeachmentStreakMonths: 3,
+  },
+  hint: {
+    minDanger: 0.35,
+  },
+  oilPrice: {
+    lossJolt: 30,
+    winRelief: -15,
+    maxIndex: 100,
+    decayFactor: 0.85,
+    feltInflationPerPoint: 0.03,
   },
   statBounds: {
     debt: { min: 0, max: Number.POSITIVE_INFINITY },

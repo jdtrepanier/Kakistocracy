@@ -23,7 +23,6 @@ describe('createInitialState', () => {
       defcon: 5,
       headlines: 0,
     });
-    expect(state.feltInflationRevealed).toBe(false);
   });
 
   it('starts with empty history and no pending effects or flags', () => {
@@ -32,9 +31,10 @@ describe('createInitialState', () => {
     expect(state.history).toEqual([]);
   });
 
-  it('starts with no wars and no countries owned', () => {
+  it('starts with no wars, no countries owned, and no landmarks renamed', () => {
     expect(state.atWarWith).toEqual([]);
     expect(state.countriesOwned).toEqual([]);
+    expect(state.renamedLandmarks).toEqual([]);
   });
 
   it('starts DEFCON tracking at the starting value with no streak', () => {
@@ -46,6 +46,10 @@ describe('createInitialState', () => {
     expect(state.midtermsChecked).toBe(false);
     expect(state.congressLost).toBe(false);
     expect(state.lowHappinessStreak).toBe(0);
+  });
+
+  it('starts with a neutral oil-price index', () => {
+    expect(state.oilPriceIndex).toBe(0);
   });
 
   it('copies balance values instead of sharing references', () => {

@@ -9,8 +9,17 @@ import type { GameState, NationStats } from './types';
  * inflation drifting toward a target set by the interest rate, felt inflation running
  * hotter than official, and Happiness reacting to felt inflation and reverting to its
  * anchor. No randomness here — random monthly events are a later phase.
+ *
+ * `oilPriceIndex` (`GameState.oilPriceIndex`, only ever nonzero after a Declare-War-on-Iran
+ * battle) nudges Felt Inflation directly, on top of its own drift toward official
+ * inflation — the one and only channel the hidden index actually reaches a stat the
+ * player can see (see that field's doc comment).
  */
-function applyEconomyFormulas(stats: NationStats, balance: Balance): NationStats {
+function applyEconomyFormulas(
+  stats: NationStats,
+  oilPriceIndex: number,
+  balance: Balance,
+): NationStats {
   const e = balance.economy;
 
   const effectiveYield =
@@ -25,7 +34,9 @@ function applyEconomyFormulas(stats: NationStats, balance: Balance): NationStats
     e.inflationBase + (e.neutralRate - stats.interestRate) * e.rateSensitivity;
   const inflation = stats.inflation + (inflationTarget - stats.inflation) * e.inflationDrift;
   const feltInflation =
-    stats.feltInflation + (inflation + e.feltGap - stats.feltInflation) * e.feltDrift;
+    stats.feltInflation +
+    (inflation + e.feltGap - stats.feltInflation) * e.feltDrift +
+    oilPriceIndex * balance.oilPrice.feltInflationPerPoint;
 
   const happiness =
     stats.happiness -
@@ -39,6 +50,15 @@ function applyEconomyFormulas(stats: NationStats, balance: Balance): NationStats
     feltInflation: clampStat('feltInflation', feltInflation, balance),
     happiness: clampStat('happiness', happiness, balance),
   };
+}
+
+/** Decays the hidden oil-price index toward 0 by one month (`GameState.oilPriceIndex`'s
+ * doc comment) — a shock from an Iran battle fades over time rather than persisting
+ * forever. Snaps to exactly 0 once it's close enough that further decay is imperceptible,
+ * so a run doesn't carry a permanent `0.0000123`-style residue. */
+function decayOilPriceIndex(oilPriceIndex: number, balance: Balance): number {
+  const decayed = oilPriceIndex * balance.oilPrice.decayFactor;
+  return Math.abs(decayed) < 0.5 ? 0 : decayed;
 }
 
 /**
@@ -123,7 +143,8 @@ export function tickMonth(state: GameState, balance: Balance = BALANCE): GameSta
   if (state.ending) return state;
 
   const afterPending = tickPending(state.stats, state.pending, balance);
-  const statsAfterEconomy = applyEconomyFormulas(afterPending.stats, balance);
+  const statsAfterEconomy = applyEconomyFormulas(afterPending.stats, state.oilPriceIndex, balance);
+  const oilPriceIndex = decayOilPriceIndex(state.oilPriceIndex, balance);
 
   const defconResult = updateDefconCalm(
     statsAfterEconomy.defcon,
@@ -153,6 +174,7 @@ export function tickMonth(state: GameState, balance: Balance = BALANCE): GameSta
     actionsUsedThisMonth: [],
     defconMonthStart: stats.defcon,
     defconCalmStreak: defconResult.streak,
+    oilPriceIndex,
     ...congress,
   };
 

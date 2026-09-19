@@ -1,3 +1,4 @@
+import { useRef, type KeyboardEvent } from 'react';
 import { CHARACTERS, displayName, shortName } from '@/data/characters';
 import type { DifficultyId } from '@/data/balance';
 import { useGameStore } from '@/store/gameStore';
@@ -29,6 +30,42 @@ export function TitleScreen() {
   const difficulty = useGameStore((s) => s.difficulty);
   const setDifficulty = useGameStore((s) => s.setDifficulty);
 
+  // Roving tabindex (WAI-ARIA radiogroup pattern) — real accessibility gap found on a
+  // polish pass: every button here kept its own Tab stop (`role="radio"` alone doesn't
+  // give this for free), so it announced as a radio group to assistive tech but didn't
+  // behave like one — a keyboard/screen-reader user had to Tab through all 3 individually
+  // rather than Tab once into the group and use arrow keys to move (and select — a
+  // native radiogroup's arrow keys change the value immediately, not just focus, same as
+  // this picker's own click handler already does). `difficultyButtonRefs` holds the 3
+  // buttons in `DIFFICULTIES` order so arrow keys can both move DOM focus and pick a
+  // neighbor without needing separate "focused" state.
+  const difficultyButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const chooseDifficulty = (id: DifficultyId) => {
+    if (difficulty === id) return;
+    playSfx('blip');
+    setDifficulty(id);
+  };
+
+  const handleDifficultyKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | null = null;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (index + 1) % DIFFICULTIES.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (index - 1 + DIFFICULTIES.length) % DIFFICULTIES.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = DIFFICULTIES.length - 1;
+    }
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextId = DIFFICULTIES[nextIndex];
+    if (!nextId) return;
+    difficultyButtonRefs.current[nextIndex]?.focus();
+    chooseDifficulty(nextId);
+  };
+
   return (
     <main className="title-screen">
       <h1 className="title">{t('game.title')}</h1>
@@ -48,22 +85,23 @@ export function TitleScreen() {
       </ul>
 
       <div className="difficulty-picker" role="radiogroup" aria-label={t('difficulty.label')}>
-        {DIFFICULTIES.map((id) => (
+        {DIFFICULTIES.map((id, index) => (
           <button
             key={id}
+            ref={(el) => {
+              difficultyButtonRefs.current[index] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={difficulty === id}
+            tabIndex={difficulty === id ? 0 : -1}
             className={
               difficulty === id
                 ? 'pixel-button difficulty-button difficulty-button-selected'
                 : 'pixel-button difficulty-button'
             }
-            onClick={() => {
-              if (difficulty === id) return;
-              playSfx('blip');
-              setDifficulty(id);
-            }}
+            onClick={() => chooseDifficulty(id)}
+            onKeyDown={(event) => handleDifficultyKeyDown(event, index)}
           >
             {t(DIFFICULTY_NAME_KEY[id])}
           </button>

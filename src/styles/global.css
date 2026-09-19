@@ -113,12 +113,13 @@ canvas {
   }
 }
 
-/* Both sit on top of the news ticker itself (bottom-right corner of the stage), not above
- * it — they used to float just above the ticker, which put them directly over the
+/* All three sit on top of the news ticker itself (bottom-right corner of the stage), not
+ * above it — they used to float just above the ticker, which put them directly over the
  * toolbar's rightmost button on the room screen. `z-index` is needed because the ticker
  * (a later sibling in App.tsx, painted on top by default) would otherwise cover them. */
 .lang-toggle,
-.mute-toggle {
+.mute-toggle,
+.hint-toggle {
   position: absolute;
   bottom: 0;
   z-index: 1;
@@ -131,6 +132,37 @@ canvas {
 
 .mute-toggle {
   right: 22px;
+}
+
+/* One more slot left of the mute toggle, same 22px-per-icon spacing already used between
+ * it and the lang toggle. Being `position: absolute` (from the shared rule above) is
+ * enough to make this button a valid containing block for `.hint-callout` below, same as
+ * `.map-landmark-marker`/`.map-landmark-callout` — no separate `position: relative` needed. */
+.hint-toggle {
+  right: 44px;
+}
+
+/* The Hint button's suggestion bubble (real user feedback: "There should be a hint
+ * button next to the mute button... if happiness is too low, you can send a stimulus
+ * check" — `ui/HintButton.tsx`). Click-to-reveal, same interaction as the World Map's
+ * landmark markers, but holds a full sentence rather than a short name, so — unlike
+ * `.map-landmark-callout` — it wraps normally instead of forcing one line, and is wide
+ * enough (150px) to hold that sentence without wrapping so aggressively it becomes
+ * unreadable at this pixel-art scale. Right-aligned to the button (`right: 0`) so it
+ * grows leftward, away from the stage's right edge, rather than off the edge. */
+.hint-callout {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  transform: translateY(-4px);
+  width: 150px;
+  padding: 4px 5px;
+  background: var(--navy-dark);
+  border: 1px solid var(--gold);
+  color: var(--cream);
+  text-align: left;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 /* Screen shake (GAME_PLAN §16/§17 "juice" — see `ui/ScreenShake.tsx`): a plain wrapper,

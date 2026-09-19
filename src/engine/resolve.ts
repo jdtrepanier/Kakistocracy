@@ -2,10 +2,17 @@ import { BALANCE, type Balance } from '@/data/balance';
 import type { ActionDef } from './actions';
 import { checkAvailability } from './actions';
 import { monthsBetween } from './calendar';
-import { applyEffects, checkElonRage, clampStat, resolveWarEffects } from './effects';
+import {
+  applyEffects,
+  applyOilPriceShock,
+  checkElonRage,
+  clampStat,
+  resolveLandmarkEffects,
+  resolveWarEffects,
+} from './effects';
 import { checkEnding } from './endings';
 import { createRng, type Rng } from './rng';
-import type { ActionLogEntry, CountryId, Effect, GameDate, GameState } from './types';
+import type { ActionLogEntry, CountryId, Effect, GameDate, GameState, LandmarkId } from './types';
 
 export interface ActionResult {
   readonly actionId: string;
@@ -60,6 +67,7 @@ function finalizeAction(
         flags: state.flags,
         atWarWith: state.atWarWith,
         countriesOwned: state.countriesOwned,
+        renamedLandmarks: state.renamedLandmarks,
         elonRage: state.elonRage,
       },
       effects,
@@ -84,6 +92,7 @@ function finalizeAction(
     flags: applied.flags,
     atWarWith: applied.atWarWith,
     countriesOwned: applied.countriesOwned,
+    renamedLandmarks: applied.renamedLandmarks,
     elonRage: applied.elonRage,
     rngState: rng.state,
     actionsLeft: state.actionsLeft - action.cost.ea,
@@ -106,12 +115,24 @@ function finalizeAction(
  * `successModifier` is the total from a showdown's chosen responses (GAME_PLAN §7),
  * or 0 for an action with no showdown. Not used by `declare_war`, which is battle-gated
  * (see `resolveBattleAction`) whenever there's a country left to fight.
+ *
+ * `landmarkId` is the landmark the player picked on the World Map before confirming
+ * (`ui/screens/SelectLandmarkScreen.tsx`, GAME_PLAN "World Map menu") — when set,
+ * substitutes it into any generic `{ kind: 'renameLandmark' }` effect in *both*
+ * `onSuccess` and `onFail` via `resolveLandmarkEffects` before picking which branch
+ * actually applies, the same way `resolveBattleAction` substitutes a country into
+ * `declareWar`. Unlike the battle-gated war flow, renaming still rolls its own success
+ * chance right here rather than being decided elsewhere first — picking the target
+ * doesn't skip the roll, it just decides which landmark a *successful* roll renames.
+ * Omitted (or for any action with no `renameLandmark` effect) this is a no-op, same as
+ * `resolveWarEffects` is for an action with no `declareWar`.
  */
 export function resolveAction(
   state: GameState,
   action: ActionDef,
   balance: Balance = BALANCE,
   successModifier = 0,
+  landmarkId?: LandmarkId,
 ): { state: GameState; result: ActionResult } {
   const availability = checkAvailability(action, state);
   if (!availability.ok) {
@@ -120,7 +141,11 @@ export function resolveAction(
 
   const rng = createRng(state.rngState);
   const success = rng.chance(computeSuccessChance(action, successModifier) / 100);
-  const effects = success ? action.onSuccess : action.onFail;
+  const onSuccess = landmarkId
+    ? resolveLandmarkEffects(action.onSuccess, landmarkId)
+    : action.onSuccess;
+  const onFail = landmarkId ? resolveLandmarkEffects(action.onFail, landmarkId) : action.onFail;
+  const effects = success ? onSuccess : onFail;
   return finalizeAction(state, action, success, effects, rng, balance);
 }
 
@@ -134,6 +159,12 @@ export function resolveAction(
  * `battleRngState` is the battle's own final RNG state (it does its own rolling for
  * damage and AI turns) — continuing from there, not from `state.rngState`, so the
  * battle's randomness isn't silently replayed.
+ *
+ * Also applies `applyOilPriceShock` for the fought `country` (a no-op unless it's Iran)
+ * — done here, after `finalizeAction`, rather than through the `Effect` DSL, since the
+ * shock depends on both `country` and `success` together and every other war target's
+ * `declare_war` effects are shared, generic, and unaware of which country ended up being
+ * fought (see that function's doc comment).
  */
 export function resolveBattleAction(
   state: GameState,
@@ -150,5 +181,12 @@ export function resolveBattleAction(
 
   const rng = createRng(battleRngState);
   const effects = success ? resolveWarEffects(action.onSuccess, country) : action.onFail;
-  return finalizeAction(state, action, success, effects, rng, balance);
+  const finalized = finalizeAction(state, action, success, effects, rng, balance);
+  const oilPriceIndex = applyOilPriceShock(
+    finalized.state.oilPriceIndex,
+    country,
+    success,
+    balance,
+  );
+  return { ...finalized, state: { ...finalized.state, oilPriceIndex } };
 }

@@ -10,7 +10,6 @@ import {
   REPORT_STAT_ORDER,
   statLabelKey,
 } from './format';
-import { computeStageScale } from './useStageScale';
 
 describe('format', () => {
   it('formats HUD values', () => {
@@ -58,17 +57,5 @@ describe('statLabelKey / REPORT_STAT_ORDER', () => {
     for (const stat of REPORT_STAT_ORDER) {
       expect(statLabelKey(stat)).toMatch(/^hud\./);
     }
-  });
-});
-
-describe('computeStageScale', () => {
-  it('uses whole-number zoom when the window is bigger than the stage', () => {
-    expect(computeStageScale(1920, 1080)).toBe(4);
-    expect(computeStageScale(1366, 768)).toBe(2);
-    expect(computeStageScale(480, 270)).toBe(1);
-  });
-
-  it('shrinks to fit on small screens', () => {
-    expect(computeStageScale(400, 800)).toBeCloseTo(400 / 480);
   });
 });

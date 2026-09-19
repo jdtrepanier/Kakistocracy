@@ -9,6 +9,17 @@
   padding: 5px 6px;
 }
 
+/* `GameScreen.tsx`'s wrapper around the room content, so an `inert` overlay/resolution
+ * state can be applied to all of it (room-chrome, viewport, toolbar) in one place — a
+ * real accessibility/keyboard-reachability gap found on a polish pass. `display: contents`
+ * makes this wrapper generate no box of its own, so its children lay out exactly as if
+ * they were still direct flex children of `.game-screen` above (unchanged from before
+ * this wrapper existed); `inert` still applies to all of them regardless, since it's a
+ * DOM-tree property, not a visual/box one. */
+.game-screen-content {
+  display: contents;
+}
+
 .game-screen-title {
   margin: 0;
   color: var(--gold);

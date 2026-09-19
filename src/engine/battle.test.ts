@@ -9,6 +9,7 @@ import {
   endTurn,
   moveUnit,
   reachableTiles,
+  spriteForFacing,
   targetsInRange,
   unitById,
   type BattleAttackLogEntry,
@@ -67,6 +68,42 @@ describe('createBattle', () => {
     expect(battle.round).toBe(1);
     expect(currentUnit(battle).id).toBe('us1');
     expect(unitById(battle, 'us1').composure).toBe(10);
+  });
+
+  it('spawns each side already facing its opponent, not a hardcoded default', () => {
+    // US spawns on the left, the enemy roster on the right (`data/battlefield.ts`) — real
+    // user feedback + screenshot: Canada units all facing 'down'/front at battle start
+    // looked wrong regardless of which side of the field they were on.
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1'), pos: { x: 1, y: 1 } }],
+      [{ template: template('e1'), pos: { x: 5, y: 1 } }],
+      1,
+    );
+    expect(unitById(battle, 'us1').facing).toBe('right'); // faces toward the enemy side
+    expect(unitById(battle, 'e1').facing).toBe('left'); // faces toward the US side
+  });
+});
+
+describe('spriteForFacing', () => {
+  it('picks the pose matching each facing when the unit has all 4', () => {
+    const sprite = { front: 'f.png', back: 'b.png', left: 'l.png', right: 'r.png' };
+    expect(spriteForFacing(sprite, 'down')).toBe('f.png');
+    expect(spriteForFacing(sprite, 'up')).toBe('b.png');
+    expect(spriteForFacing(sprite, 'left')).toBe('l.png');
+    expect(spriteForFacing(sprite, 'right')).toBe('r.png');
+  });
+
+  it('falls back to front for a pose the unit has no art for (Singh, the bear, the seal)', () => {
+    const frontOnly = { front: 'f.png' };
+    expect(spriteForFacing(frontOnly, 'up')).toBe('f.png');
+    expect(spriteForFacing(frontOnly, 'left')).toBe('f.png');
+    expect(spriteForFacing(frontOnly, 'right')).toBe('f.png');
+
+    const frontAndBack = { front: 'f.png', back: 'b.png' };
+    expect(spriteForFacing(frontAndBack, 'up')).toBe('b.png'); // has one, uses it
+    expect(spriteForFacing(frontAndBack, 'left')).toBe('f.png'); // no left art, falls back
+    expect(spriteForFacing(frontAndBack, 'right')).toBe('f.png');
   });
 });
 
@@ -137,6 +174,61 @@ describe('moveUnit', () => {
     const movedAgain = moveUnit(afterNewTurn, 'us1', { x: 2, y: 2 });
     expect(unitById(movedAgain, 'us1').pos).toEqual({ x: 2, y: 2 }); // allowed again
   });
+
+  it('turns the unit to face the direction it moved', () => {
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1', { move: 2 }), pos: { x: 2, y: 2 } }],
+      [],
+      1,
+    );
+    expect(unitById(battle, 'us1').facing).toBe('right'); // spawn default (faces the enemy)
+    expect(unitById(moveUnit(battle, 'us1', { x: 3, y: 2 }), 'us1').facing).toBe('right');
+    expect(unitById(moveUnit(battle, 'us1', { x: 1, y: 2 }), 'us1').facing).toBe('left');
+    // A purely vertical move reorients toward the opponent's side instead of literally
+    // facing up/down — see the `towardOpponent` test below.
+    expect(unitById(moveUnit(battle, 'us1', { x: 2, y: 1 }), 'us1').facing).toBe('right');
+    expect(unitById(moveUnit(battle, 'us1', { x: 2, y: 3 }), 'us1').facing).toBe('right');
+  });
+
+  it('reorients a purely vertical move toward the opposing side instead of literally up/down (user feedback)', () => {
+    // User: "the opponents (other team than the USA) should be facing USA" — once units
+    // maneuver off their spawn columns mid-battle, a move that's mostly vertical used to
+    // turn a unit to face straight up or down the field instead of toward the opposing
+    // formation it's actually standing across from. US spawns on the left (faces
+    // 'right', toward the enemy); the enemy roster spawns on the right (faces 'left',
+    // toward the US side) — same mapping as the spawn-facing default.
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1', { move: 2 }), pos: { x: 1, y: 1 } }],
+      [{ template: template('e1', { move: 2 }), pos: { x: 3, y: 1 } }],
+      1,
+    );
+    expect(unitById(moveUnit(battle, 'us1', { x: 1, y: 3 }), 'us1').facing).toBe('right');
+    expect(unitById(moveUnit(battle, 'e1', { x: 3, y: 3 }), 'e1').facing).toBe('left');
+  });
+
+  it('picks the axis with the larger delta for a diagonal move', () => {
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1', { move: 2 }), pos: { x: 1, y: 1 } }],
+      [],
+      1,
+    );
+    // 2 tiles right, 1 tile down — horizontal delta wins.
+    expect(unitById(moveUnit(battle, 'us1', { x: 3, y: 2 }), 'us1').facing).toBe('right');
+  });
+
+  it('leaves facing unchanged on a no-op move (unreachable tile)', () => {
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1', { move: 1 }), pos: { x: 1, y: 1 } }],
+      [],
+      1,
+    );
+    const next = moveUnit(battle, 'us1', { x: 3, y: 3 });
+    expect(unitById(next, 'us1').facing).toBe('right'); // still the spawn default
+  });
 });
 
 describe('targetsInRange', () => {
@@ -204,6 +296,28 @@ describe('attack', () => {
     const { state } = attack(battle, 'us1', 'e1');
     expect(state.rngState).not.toBe(battle.rngState);
   });
+
+  it('turns the attacker to face the defender', () => {
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1'), pos: { x: 2, y: 2 } }],
+      [{ template: template('e1', { maxComposure: 999 }), pos: { x: 3, y: 2 } }], // to its right
+      1,
+    );
+    expect(unitById(battle, 'us1').facing).toBe('right'); // spawn default (faces the enemy)
+    expect(unitById(attack(battle, 'us1', 'e1').state, 'us1').facing).toBe('right');
+  });
+
+  it('reorients toward the opposing side when the defender is mostly above/below, not literally up/down', () => {
+    // Same `towardOpponent` reorientation as `moveUnit` above, applied to attack facing.
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1', { range: 2 }), pos: { x: 2, y: 1 } }],
+      [{ template: template('e1', { maxComposure: 999 }), pos: { x: 2, y: 3 } }], // straight below
+      1,
+    );
+    expect(unitById(attack(battle, 'us1', 'e1').state, 'us1').facing).toBe('right');
+  });
 });
 
 // The quirks below (data/battleRosters.ts) are all percentage rolls — every test here
@@ -254,6 +368,21 @@ describe('attack quirks', () => {
     expect(unitById(state, 'e2').composure).toBeLessThan(10); // the teammate, hit instead
   });
 
+  it('faces the originally-requested target, not wherever backstabChance redirects the hit', () => {
+    const battle = createBattle(
+      GRID,
+      [{ template: template('us1'), pos: { x: 1, y: 1 } }], // to e1's left
+      [
+        { template: template('e1', { backstabChance: 1, power: 3 }), pos: { x: 2, y: 1 } },
+        { template: template('e2'), pos: { x: 2, y: 2 } }, // below e1 — a different direction
+      ],
+      1,
+    );
+    const { state, entry } = attack(battle, 'e1', 'us1');
+    expect(entry.defenderId).toBe('e2'); // the hit landed on the redirected teammate...
+    expect(unitById(state, 'e1').facing).toBe('left'); // ...but e1 still turned toward us1
+  });
+
   it('falls through to a normal attack when backstabChance rolls but there is no living teammate', () => {
     const battle = createBattle(
       GRID,
@@ -277,7 +406,7 @@ describe('attack quirks', () => {
     expect(unitById(state, 'e1').composure).toBe(10);
   });
 
-  it("heals instead of damaging when a healsFromWomen defender is hit by an isWoman attacker (Trudeau/Melania)", () => {
+  it('heals instead of damaging when a healsFromWomen defender is hit by an isWoman attacker (Trudeau/Melania)', () => {
     // Soften e1 up first (a plain hit from a non-woman attacker) so there's damaged
     // composure for the heal to actually show against, rather than just clamping at max.
     let battle = createBattle(

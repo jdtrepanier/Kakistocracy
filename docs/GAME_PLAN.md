@@ -90,7 +90,7 @@ Always visible, top of the screen, in a chunky 16-bit bar. Stats animate when th
 | **National Debt** | $40.0 T | **≥ $60 T → Bankruptcy** | Grows every month from deficit + interest. Shown as a spinning debt clock. |
 | **Interest Rate** | 3.5 % | — | Drives the cost of the Debt. Lowering it is a showdown at the Fed. |
 | **Inflation (official)** | 3.0 % | — | What the government reports. Can be manipulated (fire the statistician). |
-| **Inflation (felt)** | 6.0 % | **≥ 25 % → Hyperinflation** | What people feel at the grocery store. **Hidden** (shown as "?? %") unless revealed. This is what drives Happiness. |
+| **Inflation (felt)** | 6.0 % | **≥ 25 % → Hyperinflation** | What people feel at the grocery store, shown plainly next to official inflation on the HUD. This is what drives Happiness. *(Was originally spec'd to start hidden behind a "?? %" placeholder until a "Reveal" mechanic exposed it — that reveal was never built, so the "??" never went away in play; removed per user feedback rather than left as a permanent dead end. See CLAUDE.md.)* |
 | **Party IQ** | 80 | **≤ 0 → Brain Freeze** | A spendable resource. Dumb actions cost IQ; the dumbest *require* low IQ. |
 | **Happiness** | 70 % | **≤ 0 % → American Revolt** | Driven by felt inflation, handouts, rallies, wars (short spike, long decay). |
 | **DEFCON** *(new)* | 5 | **1 → Nuclear Meltdown** | 5 = calm, 1 = the end. Wars, UN speeches and land grabs push it down; summits and quiet months bring it back up. |
@@ -217,7 +217,7 @@ Confirming **Declare War** doesn't roll a hidden percentage — it drops straigh
 - **Turn order.** Every unit, US and enemy, is interleaved into one fixed turn order for the whole battle (not "all of one side, then all of the other"). On your turn: move within your unit's move range, then attack a living enemy within range, then end turn. Enemy turns play themselves out automatically, one action at a time, so you can watch what happened.
 - **Units.** The three currently-switchable officials (`data/battleRosters.ts`'s `US_BATTLE_UNITS`) fight as a trio, each with their own move/range/power/composure, regardless of who's "active" in the room. "Composure" is combat HP — reaching 0 knocks a unit out of the fight (a *headline*, not a casualty, per §14's tone rules).
 - **Win/lose condition.** The battle ends the instant one side has no units left standing: `usWin` applies Declare War's success effects, `enemyWin` applies its fail effects.
-- **Rosters, and why they're not all real people.** Canada's roster is the six names actually requested for this feature — five real Canadian officials (same real-name satire as the rest of the cabinet, §14) plus one deliberately fictional wildcard ("a guy in a Mackinaw jacket"). Greenland's roster is polar bears. Both fit the game's existing rule that its "51st state" targets (§10) stay clear of any live real-world conflict. **Iran, Venezuela and Russia are different: all three are currently in live, real-world tension or conflict with the US.** Rather than put a real, currently-serving head of state into a "defeat this person" minigame, their rosters (and Panama/Mexico's, which nobody specifically requested either) are invented archetypes — a spokesperson, a state TV anchor, "a guy with a megaphone" — in the same joke-spirit as the Mackinaw guy, never a real person's name or likeness. All three are war-only (not purchasable): the "buy a country" joke doesn't fit them.
+- **Rosters, and why they're not all real people.** Canada's roster is the six names actually requested for this feature — five real Canadian officials (same real-name satire as the rest of the cabinet, §14) plus one deliberately fictional wildcard (originally "a guy in a Mackinaw jacket," renamed to "Sugar Shack Guy" when new reference art reading as a maple-syrup/cabane-à-sucre worker replaced the placeholder concept). Greenland's roster is polar bears (plus one seal, added later once the user supplied real reference art for both). Both fit the game's existing rule that its "51st state" targets (§10) stay clear of any live real-world conflict. **Iran, Venezuela and Russia are different: all three are currently in live, real-world tension or conflict with the US.** Rather than put a real, currently-serving head of state into a "defeat this person" minigame, their rosters (and Panama/Mexico's, which nobody specifically requested either) are invented archetypes — a spokesperson, a state TV anchor, "a guy with a megaphone" — in the same joke-spirit as Sugar Shack Guy, never a real person's name or likeness. All three are war-only (not purchasable): the "buy a country" joke doesn't fit them.
 
 ---
 
@@ -340,6 +340,8 @@ A dedicated full-screen menu (not a walkable room — reached from a toolbar but
 Starting roster (v1, keeps clear of any live real-world conflict): **Canada**, **Greenland**, **Panama**, **Mexico** — all four already appear in the satire bank (§19.A) as actual "51st state" / purchase-ambition targets, so war and purchase share one list. More countries (and a real click-to-target interaction) are a later-phase idea, not v1.
 
 **War-only additions:** **Iran**, **Venezuela**, **Russia** join as `declare_war` targets (not purchasable — that joke doesn't fit them). Unlike the original four, all three are in live real-world tension or conflict with the US, so their tactical-battle rosters (§7.1) are invented archetypes rather than real officials — see `data/battleRosters.ts`'s doc comment for the full reasoning.
+
+**Iran specifically also moves the oil market.** Real-world-flavor tie-in (user feedback: "When you attack Iran, if you lose, huge increase in oil price. You win, oil price goes down.") — losing a Declare-War-on-Iran battle spikes a hidden geopolitical index, winning eases it, and that index nudges Felt Inflation over the following months as it decays back to neutral. Deliberately not its own HUD stat: it's a country-specific consequence the player feels through the existing economy rather than a new number to watch. See `GameState.oilPriceIndex`'s doc comment (`engine/types.ts`), `engine/effects.ts`'s `applyOilPriceShock`, and `engine/economy.ts`'s monthly decay/nudge.
 | **Mar-a-Lago** | Ballroom, golf course | Memecoins, deals with foreign NPCs |
 | **UN General Assembly** | Escalator, podium | UN speech (the escalator stops on the way up) |
 | **Starbase** | Launch pad | Rockets, Elon reconciliation quest |
@@ -353,7 +355,7 @@ Internal resolution 480×270, scaled up pixel-perfect. Rooms render in a 2:1 iso
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ JAN 2024 ▮▯▯▯ │ DEBT $40.0T │ RATE 3.5% │ INFL 3.0% (??) │ IQ 80 │ HAPPY 70% │ DEFCON 5 │ ⚖⚖⚖ │
+│ JAN 2024 ▮▯▯▯ │ DEBT $40.0T │ RATE 3.5% │ INFL 3.0% (6.0%) │ IQ 80 │ HAPPY 70% │ DEFCON 5 │ ⚖⚖⚖ │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ ┌───────────────┐                                         ┌──────────────┐   │
 │ │ [portrait]    │                                         │ OVAL OFFICE  │   │

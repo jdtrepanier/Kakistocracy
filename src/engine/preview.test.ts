@@ -49,6 +49,24 @@ describe('summarizeEffects', () => {
     expect(summarizeEffects([{ kind: 'purchaseCountry' }]).hasRandomCountry).toBe(true);
   });
 
+  it('flags hasRandomLandmark for renameLandmark, without a stat delta', () => {
+    const summary = summarizeEffects([
+      { kind: 'renameLandmark' },
+      { kind: 'delta', stat: 'iq', amount: -2 },
+    ]);
+    expect(summary.hasRandomLandmark).toBe(true);
+    expect(summary.immediate).toEqual({ iq: -2 });
+  });
+
+  it('ignores a substituted declareWarOn/renameLandmarkOn (never appears in raw preview data)', () => {
+    const summary = summarizeEffects([
+      { kind: 'declareWarOn', country: 'canada' },
+      { kind: 'renameLandmarkOn', landmark: 'denali' },
+    ]);
+    expect(summary.hasRandomCountry).toBe(false);
+    expect(summary.hasRandomLandmark).toBe(false);
+  });
+
   it('ignores flag, unflag and rage effects', () => {
     const summary = summarizeEffects([
       { kind: 'flag', set: 'x' },
@@ -59,6 +77,7 @@ describe('summarizeEffects', () => {
     expect(summary.overTime).toEqual({});
     expect(summary.hasChance).toBe(false);
     expect(summary.hasRandomCountry).toBe(false);
+    expect(summary.hasRandomLandmark).toBe(false);
   });
 
   it('returns empty, all-false summary for no effects', () => {
@@ -67,6 +86,7 @@ describe('summarizeEffects', () => {
       overTime: {},
       hasChance: false,
       hasRandomCountry: false,
+      hasRandomLandmark: false,
     });
   });
 });
