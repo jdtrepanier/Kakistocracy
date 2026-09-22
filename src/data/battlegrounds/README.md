@@ -69,19 +69,20 @@ malformed values), but its actual walkability values are overridden at load time
 `gridFromTerrain(terrain)` whenever `"terrain"` exists in the file. Only the six files with
 no `"terrain"` key at all still use `"grid"`'s hand-typed values directly.
 
-### `"terrain"` — what texture paints each cell, **and, once present, the only source of
-walkability**
+### `"terrain"` — what texture paints each cell, \*\*and, once present, the only source of
+
+walkability\*\*
 
 Exactly the same shape as `"grid"` (same row count, same row length) — the loader rejects a
 `"terrain"` that's a different size than `"grid"` in the same file. One of:
 
 | Value           | Texture            | Renders as                                                                 | Walkable? |
-| --------------- | ------------------ | --------------------------------------------------------------------------- | --------- |
-| `"grass"`       | Green turf         | Flat                                                                         | Yes       |
-| `"rockyGround"` | Cracked dirt       | Flat                                                                         | Yes       |
-| `"stonePath"`   | Paved plaza/bridge | Flat                                                                         | Yes       |
-| `"water"`       | River              | Flat                                                                         | No        |
-| `"cliff"`       | Rock face          | **Tall extruded 3D block** — the only terrain that stands up off the field  | No        |
+| --------------- | ------------------ | -------------------------------------------------------------------------- | --------- |
+| `"grass"`       | Green turf         | Flat                                                                       | Yes       |
+| `"rockyGround"` | Cracked dirt       | Flat                                                                       | Yes       |
+| `"stonePath"`   | Paved plaza/bridge | Flat                                                                       | Yes       |
+| `"water"`       | River              | Flat                                                                       | No        |
+| `"cliff"`       | Rock face          | **Tall extruded 3D block** — the only terrain that stands up off the field | No        |
 
 User request: _"The terrain map should be based on the selected background tile. You can
 walk on grass, rocky ground and stonePath."_ As of that change, **`"terrain"` is no longer
@@ -113,17 +114,27 @@ under `/assets/battle-tiles/props/` (exact filename, forward slashes) — the fu
 currently available in `public/assets/battle-tiles/props/`:
 
 ```
-bench.png                  kiosk-blue.png            tree-pine-c.png
-building-blue-glass.png    kiosk-brown.png           tree-pine-d.png
-building-brick.png         sign-blue.png             tree-pine-small.png
-building-dark-roof.png     sign-green-a.png          tree-round-a.png
-building-modern.png        sign-green-b.png          tree-round-b.png
-building-red.png           tree-narrow-a.png         tree-round-c.png
-building-white.png         tree-narrow-b.png         tree-round-d.png
-fence-metal.png            tree-pine-a.png           tree-round-e.png
-fence-wood-dark.png        tree-pine-b.png           tree-round-small.png
-fence-wood-rail.png                                  tree-tiny.png
+barrier-checkpoint.png      boat-patrol.png
+bridge-steel-stone.png      building-brick-plain.png
+building-brick-shop.png     flag-canada.png
+flag-us.png                 forest-pine-cluster.png
+forest-round-cluster.png    gate-iron.png
+jeep.png                    rock-pile.png
+sandbags-crates.png         tent-canvas.png
+tent-medic.png              watchtower.png
 ```
+
+(This is the full 16-file prop batch extracted from the user-supplied "sheet 2" AI tile
+sheet in 2026-09 — see `CLAUDE.md`'s changelog for that round. The original 29
+placeholder-era props this project started with have been removed; every Canada placement
+that used one was first remapped to the nearest equivalent from this batch — see that same
+changelog entry for the exact old→new mapping and the one known compromise it involved
+(several distinct individual-tree images collapsed onto the two forest-cluster images
+above, since this batch has no individual-tree variants).
+
+Generating more art for this folder (terrain or props)? See
+`public/assets/battle-tiles/ASSET_GENERATION_GUIDE.md` for the exact isometric camera
+angle to match, a prompt template, and a checklist of what's still missing.
 
 A prop is purely decorative — it never blocks movement on its own. This key is also
 optional (only `canada.json` has any today). If you add a prop to a cell that's `"floor"`
