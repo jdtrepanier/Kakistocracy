@@ -1,0 +1,38 @@
+[
+  {
+    "id": "mexico-mariachi",
+    "nameKey": "battle.unit.mexico.mariachi",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 12,
+    "placeholder": {
+      "initials": "🎸",
+      "color": "#e0782c"
+    }
+  },
+  {
+    "id": "mexico-churro-vendor",
+    "nameKey": "battle.unit.mexico.churroVendor",
+    "move": 3,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 10,
+    "placeholder": {
+      "initials": "C",
+      "color": "#b07d2b"
+    }
+  },
+  {
+    "id": "mexico-customs-officer",
+    "nameKey": "battle.unit.mexico.customsOfficer",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "CO",
+      "color": "#3a6ea5"
+    }
+  }
+]

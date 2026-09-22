@@ -1,0 +1,160 @@
+[
+  {
+    "id": "trump",
+    "name": {
+      "real": "Donald Trump",
+      "parody": "The Chaos King"
+    },
+    "short": {
+      "real": "TRUMP",
+      "parody": "KING"
+    },
+    "placeholder": {
+      "initials": "DT",
+      "color": "#c8323c"
+    },
+    "sprite": {
+      "front": "/assets/sprites/us/trump-front.png",
+      "back": "/assets/sprites/us/trump-back.png",
+      "left": "/assets/sprites/us/trump-left.png",
+      "right": "/assets/sprites/us/trump-right.png"
+    },
+    "move": 2,
+    "range": 1,
+    "power": 5,
+    "maxComposure": 16,
+    "fleeChance": 0.6
+  },
+  {
+    "id": "vance",
+    "name": {
+      "real": "JD Vance",
+      "parody": "The Flip-Flop Monk"
+    },
+    "short": {
+      "real": "VANCE",
+      "parody": "MONK"
+    },
+    "placeholder": {
+      "initials": "JV",
+      "color": "#3a6ea5"
+    },
+    "sprite": {
+      "front": "/assets/sprites/us/vance-front.png",
+      "back": "/assets/sprites/us/vance-back.png",
+      "left": "/assets/sprites/us/vance-left.png",
+      "right": "/assets/sprites/us/vance-right.png"
+    },
+    "move": 3,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 12,
+    "selfHitChance": 0.2
+  },
+  {
+    "id": "bessent",
+    "name": {
+      "real": "Scott Bessent",
+      "parody": "The Hedge-Fund Sorcerer"
+    },
+    "short": {
+      "real": "BESSENT",
+      "parody": "SORCERER"
+    },
+    "placeholder": {
+      "initials": "SB",
+      "color": "#3f9b5b"
+    },
+    "sprite": {
+      "front": "/assets/sprites/us/bessent-front.png",
+      "back": "/assets/sprites/us/bessent-back.png",
+      "left": "/assets/sprites/us/bessent-left.png",
+      "right": "/assets/sprites/us/bessent-right.png"
+    },
+    "move": 3,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 12
+  },
+  {
+    "id": "lutnick",
+    "name": {
+      "real": "Howard Lutnick",
+      "parody": "The Tariff Paladin"
+    },
+    "short": {
+      "real": "LUTNICK",
+      "parody": "PALADIN"
+    },
+    "placeholder": {
+      "initials": "HL",
+      "color": "#b07d2b"
+    },
+    "sprite": {
+      "front": "/assets/sprites/us/lutnick-front.png",
+      "back": "/assets/sprites/us/lutnick-back.png",
+      "left": "/assets/sprites/us/lutnick-left.png",
+      "right": "/assets/sprites/us/lutnick-right.png"
+    },
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 12
+  },
+  {
+    "id": "melania",
+    "name": {
+      "real": "Melania",
+      "parody": "The Ghost Rogue"
+    },
+    "short": {
+      "real": "MELANIA",
+      "parody": "ROGUE"
+    },
+    "placeholder": {
+      "initials": "M",
+      "color": "#8a6bbf"
+    },
+    "sprite": {
+      "front": "/assets/sprites/us/melania-front.png",
+      "back": "/assets/sprites/us/melania-back.png",
+      "left": "/assets/sprites/us/melania-left.png",
+      "right": "/assets/sprites/us/melania-right.png"
+    },
+    "move": 4,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 10,
+    "isWoman": true,
+    "magic": {
+      "kind": "sorcerer",
+      "max": 3,
+      "chance": 0.5
+    }
+  },
+  {
+    "id": "musk",
+    "name": {
+      "real": "Elon Musk",
+      "parody": "The Techno-Shaman"
+    },
+    "short": {
+      "real": "MUSK",
+      "parody": "SHAMAN"
+    },
+    "placeholder": {
+      "initials": "EM",
+      "color": "#2bb0b0"
+    },
+    "sprite": {
+      "front": "/assets/sprites/us/musk-front.png",
+      "back": "/assets/sprites/us/musk-back.png",
+      "left": "/assets/sprites/us/musk-left.png",
+      "right": "/assets/sprites/us/musk-right.png"
+    },
+    "move": 3,
+    "range": 1,
+    "power": 5,
+    "maxComposure": 10
+  }
+]

@@ -1,0 +1,134 @@
+[
+  {
+    "id": "canada-carney",
+    "nameKey": "battle.unit.canada.carney",
+    "move": 2,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 9,
+    "placeholder": {
+      "initials": "MC",
+      "color": "#c8323c"
+    },
+    "sprite": {
+      "front": "/assets/sprites/canada/carney-front.png",
+      "back": "/assets/sprites/canada/carney-back.png",
+      "left": "/assets/sprites/canada/carney-left.png",
+      "right": "/assets/sprites/canada/carney-right.png"
+    },
+    "magic": {
+      "kind": "charm",
+      "max": 3,
+      "chance": 0.5
+    }
+  },
+  {
+    "id": "canada-trudeau",
+    "nameKey": "battle.unit.canada.trudeau",
+    "move": 3,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 4,
+    "placeholder": {
+      "initials": "JT",
+      "color": "#3a6ea5"
+    },
+    "sprite": {
+      "front": "/assets/sprites/canada/trudeau-front.png",
+      "back": "/assets/sprites/canada/trudeau-back.png",
+      "left": "/assets/sprites/canada/trudeau-left.png",
+      "right": "/assets/sprites/canada/trudeau-right.png"
+    },
+    "healsFromWomen": true
+  },
+  {
+    "id": "canada-miller",
+    "nameKey": "battle.unit.canada.miller",
+    "move": 2,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 5,
+    "placeholder": {
+      "initials": "MM",
+      "color": "#8f7228"
+    },
+    "sprite": {
+      "front": "/assets/sprites/canada/miller-front.png",
+      "back": "/assets/sprites/canada/miller-back.png",
+      "left": "/assets/sprites/canada/miller-left.png",
+      "right": "/assets/sprites/canada/miller-right.png"
+    },
+    "backstabChance": 0.5
+  },
+  {
+    "id": "canada-joly",
+    "nameKey": "battle.unit.canada.joly",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 5,
+    "placeholder": {
+      "initials": "MJ",
+      "color": "#3f9b5b"
+    },
+    "sprite": {
+      "front": "/assets/sprites/canada/joly-front.png",
+      "back": "/assets/sprites/canada/joly-back.png",
+      "left": "/assets/sprites/canada/joly-left.png",
+      "right": "/assets/sprites/canada/joly-right.png"
+    },
+    "isWoman": true
+  },
+  {
+    "id": "canada-leblanc",
+    "nameKey": "battle.unit.canada.leblanc",
+    "move": 2,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 5,
+    "placeholder": {
+      "initials": "DL",
+      "color": "#8a6bbf"
+    },
+    "sprite": {
+      "front": "/assets/sprites/canada/leblanc-front.png",
+      "back": "/assets/sprites/canada/leblanc-back.png",
+      "left": "/assets/sprites/canada/leblanc-left.png",
+      "right": "/assets/sprites/canada/leblanc-right.png"
+    },
+    "dodgeChance": 0.5
+  },
+  {
+    "id": "canada-singh",
+    "nameKey": "battle.unit.canada.singh",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 6,
+    "placeholder": {
+      "initials": "JS",
+      "color": "#e0782c"
+    },
+    "sprite": {
+      "front": "/assets/sprites/canada/singh-front.png"
+    }
+  },
+  {
+    "id": "canada-sugar-shack-guy",
+    "nameKey": "battle.unit.canada.sugarShackGuy",
+    "move": 3,
+    "range": 1,
+    "power": 5,
+    "maxComposure": 12,
+    "placeholder": {
+      "initials": "?",
+      "color": "#b0402c"
+    },
+    "sprite": {
+      "front": "/assets/sprites/canada/sugar-shack-guy-front.png",
+      "back": "/assets/sprites/canada/sugar-shack-guy-back.png",
+      "left": "/assets/sprites/canada/sugar-shack-guy-left.png",
+      "right": "/assets/sprites/canada/sugar-shack-guy-right.png"
+    }
+  }
+]

@@ -91,6 +91,8 @@ export const en = {
   'action.senateTrial.name': 'Survive the Senate Trial',
   'action.executiveOrderSpree.name': 'Executive Order Spree',
   'action.hireAdultInRoom.name': 'Hire an Adult in the Room',
+  'action.revokePressAccess.name': 'Revoke Press Access',
+  'action.startTrumpTv.name': 'Launch Trump TV',
   'action.elonReconciliation.name': 'Patch Things Up With Elon',
 
   'country.canada': 'Canada',
@@ -349,6 +351,8 @@ export const en = {
   'battle.title': 'Battle: {country}',
   'battle.round': 'Round {n}',
   'battle.viewport.label': 'Battlefield — arrow keys or drag to look around',
+  'battle.zoom.in': 'Zoom in',
+  'battle.zoom.out': 'Zoom out',
   'battle.tile.empty': 'Tile {x}, {y}',
   'battle.tile.reachable': 'Move here ({x}, {y})',
   'battle.tile.occupied': '{name} ({x}, {y})',

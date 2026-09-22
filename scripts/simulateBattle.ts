@@ -28,8 +28,8 @@ import {
   type BattleSpawn,
   type BattleState,
 } from '@/engine/battle';
-import { BATTLEFIELD, ENEMY_SPAWN_POSITIONS, US_SPAWN_POSITIONS } from '@/data/battlefield';
 import { US_BATTLE_UNITS, getBattleRoster } from '@/data/battleRosters';
+import { getBattleground } from '@/data/battlegrounds';
 import { createRng } from '@/engine/rng';
 import type { CountryId, GridPosition } from '@/engine/types';
 
@@ -80,16 +80,21 @@ export interface BattleRunResult {
 }
 
 export function runBattle(seed: number, country: CountryId): BattleRunResult {
+  // Per-country battleground (`data/battlegrounds.ts`) — a real playable grid/spawn set,
+  // not just visual dressing, for Canada's river-and-bridge layout; every other country
+  // still resolves to `DEFAULT_BATTLEGROUND`, which wraps the exact same shared
+  // grid/spawns this simulator always used, so their numbers are unaffected.
+  const battleground = getBattleground(country);
   const usSpawns: readonly BattleSpawn[] = Object.values(US_BATTLE_UNITS).map((template, i) => ({
     template,
-    pos: US_SPAWN_POSITIONS[i] as GridPosition,
+    pos: battleground.usSpawns[i] as GridPosition,
   }));
   const enemySpawns: readonly BattleSpawn[] = getBattleRoster(country).map((template, i) => ({
     template,
-    pos: ENEMY_SPAWN_POSITIONS[i] as GridPosition,
+    pos: battleground.enemySpawns[i] as GridPosition,
   }));
 
-  let state = createBattle(BATTLEFIELD, usSpawns, enemySpawns, seed);
+  let state = createBattle(battleground.grid, usSpawns, enemySpawns, seed);
   let turns = 0;
   while (checkOutcome(state) === 'ongoing' && turns < MAX_TURNS) {
     const unit = currentUnit(state);

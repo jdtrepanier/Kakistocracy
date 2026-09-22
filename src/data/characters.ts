@@ -1,9 +1,23 @@
 import type { Direction } from '@/engine/movement';
 import type { CharacterId } from '@/engine/types';
+import usData from './characters/us.json';
 
 /**
  * The name layer. Every name shown in the game comes from here, so switching to a
  * parody-name build is a one-line change (NAME_MODE). See docs/GAME_PLAN.md §14.
+ *
+ * **Backed by `data/characters/us.json`, not a hardcoded array.** User request: "Each
+ * character's information should also be in a json file" — the same hand-editable-JSON
+ * treatment `data/battlegrounds.ts` already got for map layouts (`data/battlegrounds/
+ * README.md`), now for character data too. `us.json` merges what used to be split across
+ * two places — this file's own display info (name/short/placeholder/sprite) and
+ * `battleRosters.ts`'s `US_BATTLE_UNITS` combat stats/quirks for the same six officials —
+ * into one object per character (the user's explicit choice when asked: everything about
+ * one character belongs in one file, not two systems that have to stay in sync by hand).
+ * This file only reads the display fields back out; `battleRosters.ts` reads the same
+ * `us.json` a second time for the stats/quirks (see its own doc comment) and still calls
+ * `getCharacter(id).sprite` from here for sprite art, exactly like before — only the data's
+ * *source* changed, not how these two files relate to each other.
  */
 export type NameMode = 'real' | 'parody';
 
@@ -35,80 +49,98 @@ export interface CharacterDef {
   readonly sprite: CharacterSprite;
 }
 
-export const CHARACTERS: readonly CharacterDef[] = [
-  {
-    id: 'trump',
-    name: { real: 'Donald Trump', parody: 'The Chaos King' },
-    short: { real: 'TRUMP', parody: 'KING' },
-    placeholder: { initials: 'DT', color: '#c8323c' },
-    sprite: {
-      front: '/assets/sprites/us/trump-front.png',
-      back: '/assets/sprites/us/trump-back.png',
-      left: '/assets/sprites/us/trump-left.png',
-      right: '/assets/sprites/us/trump-right.png',
-    },
-  },
-  {
-    id: 'vance',
-    name: { real: 'JD Vance', parody: 'The Flip-Flop Monk' },
-    short: { real: 'VANCE', parody: 'MONK' },
-    placeholder: { initials: 'JV', color: '#3a6ea5' },
-    sprite: {
-      front: '/assets/sprites/us/vance-front.png',
-      back: '/assets/sprites/us/vance-back.png',
-      left: '/assets/sprites/us/vance-left.png',
-      right: '/assets/sprites/us/vance-right.png',
-    },
-  },
-  {
-    id: 'bessent',
-    name: { real: 'Scott Bessent', parody: 'The Hedge-Fund Sorcerer' },
-    short: { real: 'BESSENT', parody: 'SORCERER' },
-    placeholder: { initials: 'SB', color: '#3f9b5b' },
-    sprite: {
-      front: '/assets/sprites/us/bessent-front.png',
-      back: '/assets/sprites/us/bessent-back.png',
-      left: '/assets/sprites/us/bessent-left.png',
-      right: '/assets/sprites/us/bessent-right.png',
-    },
-  },
-  {
-    id: 'lutnick',
-    name: { real: 'Howard Lutnick', parody: 'The Tariff Paladin' },
-    short: { real: 'LUTNICK', parody: 'PALADIN' },
-    placeholder: { initials: 'HL', color: '#b07d2b' },
-    sprite: {
-      front: '/assets/sprites/us/lutnick-front.png',
-      back: '/assets/sprites/us/lutnick-back.png',
-      left: '/assets/sprites/us/lutnick-left.png',
-      right: '/assets/sprites/us/lutnick-right.png',
-    },
-  },
-  {
-    id: 'melania',
-    name: { real: 'Melania', parody: 'The Ghost Rogue' },
-    short: { real: 'MELANIA', parody: 'ROGUE' },
-    placeholder: { initials: 'M', color: '#8a6bbf' },
-    sprite: {
-      front: '/assets/sprites/us/melania-front.png',
-      back: '/assets/sprites/us/melania-back.png',
-      left: '/assets/sprites/us/melania-left.png',
-      right: '/assets/sprites/us/melania-right.png',
-    },
-  },
-  {
-    id: 'musk',
-    name: { real: 'Elon Musk', parody: 'The Techno-Shaman' },
-    short: { real: 'MUSK', parody: 'SHAMAN' },
-    placeholder: { initials: 'EM', color: '#2bb0b0' },
-    sprite: {
-      front: '/assets/sprites/us/musk-front.png',
-      back: '/assets/sprites/us/musk-back.png',
-      left: '/assets/sprites/us/musk-left.png',
-      right: '/assets/sprites/us/musk-right.png',
-    },
-  },
-];
+const CHARACTER_IDS: ReadonlySet<CharacterId> = new Set<CharacterId>([
+  'trump',
+  'vance',
+  'bessent',
+  'lutnick',
+  'melania',
+  'musk',
+]);
+
+function parseCharacterId(raw: unknown, label: string): CharacterId {
+  if (typeof raw !== 'string' || !CHARACTER_IDS.has(raw as CharacterId)) {
+    throw new Error(`${label}: "${raw}" is not a known CharacterId (see engine/types.ts)`);
+  }
+  return raw as CharacterId;
+}
+
+function parseNameModeRecord(raw: unknown, label: string): Readonly<Record<NameMode, string>> {
+  const obj = raw as { real?: unknown; parody?: unknown } | null;
+  if (
+    obj === null ||
+    typeof obj !== 'object' ||
+    typeof obj.real !== 'string' ||
+    typeof obj.parody !== 'string'
+  ) {
+    throw new Error(
+      `${label}: expected {"real": string, "parody": string}, got ${JSON.stringify(raw)}`,
+    );
+  }
+  return { real: obj.real, parody: obj.parody };
+}
+
+function parsePlaceholder(
+  raw: unknown,
+  label: string,
+): { readonly initials: string; readonly color: string } {
+  const obj = raw as { initials?: unknown; color?: unknown } | null;
+  if (
+    obj === null ||
+    typeof obj !== 'object' ||
+    typeof obj.initials !== 'string' ||
+    typeof obj.color !== 'string'
+  ) {
+    throw new Error(
+      `${label}: expected {"initials": string, "color": string}, got ${JSON.stringify(raw)}`,
+    );
+  }
+  return { initials: obj.initials, color: obj.color };
+}
+
+/** Every US official has all 4 poses today, unlike a `BattleUnitSprite` (`battleRosters.ts`)
+ * where only `front` is required — so this requires all 4, matching `CharacterSprite`. */
+function parseCharacterSprite(raw: unknown, label: string): CharacterSprite {
+  const obj = raw as Partial<Record<keyof CharacterSprite, unknown>> | null;
+  if (obj === null || typeof obj !== 'object') {
+    throw new Error(`${label}: expected a sprite object, got ${JSON.stringify(raw)}`);
+  }
+  const sprite: Partial<Record<keyof CharacterSprite, string>> = {};
+  for (const pose of ['front', 'back', 'left', 'right'] as const) {
+    const value = obj[pose];
+    if (typeof value !== 'string') {
+      throw new Error(`${label}.${pose}: expected a string path, got ${JSON.stringify(value)}`);
+    }
+    sprite[pose] = value;
+  }
+  return sprite as CharacterSprite;
+}
+
+// Exported (like data/battlegrounds.ts's own parseGrid) so tests can exercise the JSON
+// validation directly with synthetic bad input.
+export function parseCharacterDef(raw: unknown, label: string): CharacterDef {
+  const obj = raw as {
+    id?: unknown;
+    name?: unknown;
+    short?: unknown;
+    placeholder?: unknown;
+    sprite?: unknown;
+  } | null;
+  if (obj === null || typeof obj !== 'object') {
+    throw new Error(`${label}: expected a character object, got ${JSON.stringify(raw)}`);
+  }
+  return {
+    id: parseCharacterId(obj.id, `${label} "id"`),
+    name: parseNameModeRecord(obj.name, `${label} "name"`),
+    short: parseNameModeRecord(obj.short, `${label} "short"`),
+    placeholder: parsePlaceholder(obj.placeholder, `${label} "placeholder"`),
+    sprite: parseCharacterSprite(obj.sprite, `${label} "sprite"`),
+  };
+}
+
+export const CHARACTERS: readonly CharacterDef[] = (usData as readonly unknown[]).map((raw, i) =>
+  parseCharacterDef(raw, `characters/us.json[${i}]`),
+);
 
 /** Maps a room-movement `Direction` to the matching sprite pose — see the `CharacterSprite`
  * doc comment above for how each slot was picked to match its actual screen diagonal. */

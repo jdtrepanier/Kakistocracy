@@ -92,6 +92,8 @@ export const fr: Messages = {
   'action.senateTrial.name': 'Survivre au procès du Sénat',
   'action.executiveOrderSpree.name': 'Rafale de décrets présidentiels',
   'action.hireAdultInRoom.name': 'Embaucher un adulte dans la pièce',
+  'action.revokePressAccess.name': "Révoquer l'accès à la presse",
+  'action.startTrumpTv.name': 'Lancer Trump TV',
   'action.elonReconciliation.name': 'Se réconcilier avec Elon',
 
   'country.canada': 'Canada',
@@ -361,6 +363,8 @@ export const fr: Messages = {
   'battle.title': 'Bataille : {country}',
   'battle.round': 'Manche {n}',
   'battle.viewport.label': 'Champ de bataille — flèches ou glisser pour regarder autour',
+  'battle.zoom.in': 'Zoomer',
+  'battle.zoom.out': 'Dézoomer',
   'battle.tile.empty': 'Case {x}, {y}',
   'battle.tile.reachable': 'Se déplacer ici ({x}, {y})',
   'battle.tile.occupied': '{name} ({x}, {y})',

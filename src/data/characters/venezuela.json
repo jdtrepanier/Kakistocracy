@@ -1,0 +1,38 @@
+[
+  {
+    "id": "venezuela-committee-chair",
+    "nameKey": "battle.unit.venezuela.committeeChair",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "CC",
+      "color": "#8a6bbf"
+    }
+  },
+  {
+    "id": "venezuela-oil-executive",
+    "nameKey": "battle.unit.venezuela.oilExecutive",
+    "move": 2,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "OE",
+      "color": "#3f9b5b"
+    }
+  },
+  {
+    "id": "venezuela-megaphone-guy",
+    "nameKey": "battle.unit.venezuela.megaphoneGuy",
+    "move": 3,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 10,
+    "placeholder": {
+      "initials": "📣",
+      "color": "#e0782c"
+    }
+  }
+]

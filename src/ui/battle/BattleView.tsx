@@ -5,7 +5,9 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type WheelEvent,
 } from 'react';
+import { getBattleground, type BattlegroundProp, type TerrainKind } from '@/data/battlegrounds';
 import { displayName } from '@/data/characters';
 import { US_BADGE, US_COLOR, getCountry } from '@/data/countries';
 import {
@@ -28,6 +30,7 @@ import {
   isoDepth,
   isoGridBounds,
   projectIsoWithin,
+  type IsoBounds,
   type IsoPoint,
 } from '../room/isometric';
 import { useElementSize } from '../room/useElementSize';
@@ -52,6 +55,29 @@ const KEY_PAN: Readonly<Record<string, readonly [number, number]>> = {
   ArrowLeft: [-PAN_STEP, 0],
   ArrowRight: [PAN_STEP, 0],
 };
+
+/** Battle-only zoom (user request, after a screenshot comparison: "would it be feasible
+ * to zoom in/zoom out in battle mode so I can show you how different it is" — separate
+ * from the whole-game `useStageScale` fit-to-window zoom, which stays fixed here). 0.5×
+ * lets the full ~544×294 stage-px grid (a 20×14 field, `isoGridBounds`) shrink small
+ * enough to mostly fit the battle viewport at once — the whole reason for this feature —
+ * without going so small the pixel art turns to mush; 2× is a close-up on a couple of
+ * units, well before individual tiles get too big to read as a battlefield. Applied as a
+ * CSS `scale()` on `.battle-grid-iso`, composed *after* the existing `translate(camera)`
+ * in the same `transform` — per the CSS transform-list spec that composes right-to-left,
+ * so `scale` acts on the grid's own local content first and `translate` moves the
+ * already-scaled result in the viewport's own (zoom-independent) pixel space. That's
+ * exactly why `camera.x`/`camera.y` themselves never need to change with zoom — only the
+ * *inputs* to `centerOn`/`clampCamera` do, since the grid's on-screen footprint and any
+ * point on it both scale by `zoom` before landing at `camera.x/y` (see
+ * `zoomedBoundsForEffect`/`zoomedFollowPointForEffect` below). */
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2;
+const ZOOM_STEP = 0.25;
+
+function clampZoom(z: number): number {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+}
 
 /** Below this many client px of total pointer movement, a drag is treated as a plain
  * click/tap on whatever tile is under it rather than a pan — matches the small
@@ -232,13 +258,33 @@ function battleLogText(entry: BattleLogEntry, battle: BattleState, t: TFunction)
   }
 }
 
-/** One battlefield cell: an inert extruded block for a wall, or a clickable diamond
- * (reusing the room camera's `.iso-diamond` look, GAME_PLAN §11) for floor — highlighted
- * when it's reachable this turn or holds an attackable target. */
+/** Maps a `TerrainKind` to the `.battle-terrain-*` modifier class that paints it (see
+ * `styles/battle.css`) — `undefined` for a country whose `data/battlegrounds/<id>.json`
+ * has no `"terrain"` key yet leaves the tile with no terrain class at all, so it renders
+ * exactly as it always has (a plain colored diamond/box). */
+function terrainClass(terrain: TerrainKind | undefined): string {
+  return terrain ? `battle-terrain-${terrain}` : '';
+}
+
+/** One battlefield cell. Three render shapes, not two — added alongside the per-country
+ * terrain system (`data/battlegrounds.ts`, GAME_PLAN §7.1):
+ * - `tile === 'wall'` with terrain `'cliff'` (or no terrain at all, every country before
+ *   this system existed): the original tall extruded `IsoBlock` — a rock face genuinely
+ *   should stand up off the field.
+ * - `tile === 'wall'` with any other terrain (e.g. `'water'`, or a grassy tile a tree
+ *   prop stands on): a flat, non-interactive, textured diamond — impassable per the
+ *   engine's plain `floor`/`wall` grid either way, but a river or a tree-stump patch
+ *   shouldn't stand up like a rock does.
+ * - `tile === 'floor'`: the original clickable diamond, now with an optional terrain
+ *   texture and (for the attackable highlight) an overlay span rather than a flat
+ *   `background` color, since a `background` shorthand would otherwise blank out
+ *   whatever terrain texture is already painted there.
+ */
 function BattleTile({
   tile,
   pos,
   point,
+  terrain,
   highlight,
   occupant,
   disabled,
@@ -248,6 +294,7 @@ function BattleTile({
   tile: TileKind;
   pos: GridPosition;
   point: IsoPoint;
+  terrain?: TerrainKind;
   highlight: 'reachable' | 'attackable' | null;
   /** The living unit standing on this tile, if any — real accessibility gap found on a
    * polish pass: every tile's `aria-label` used to be just its raw grid coordinate
@@ -275,14 +322,23 @@ function BattleTile({
       });
 
   if (tile === 'wall') {
+    if (terrain === undefined || terrain === 'cliff') {
+      return (
+        <IsoBlock
+          key={key}
+          point={point}
+          depth={depth}
+          height={ISO_WALL_HEIGHT}
+          faces={CUBE_FACES_WALL}
+          className={`iso-wall ${terrainClass(terrain)}`}
+        />
+      );
+    }
     return (
-      <IsoBlock
+      <div
         key={key}
-        point={point}
-        depth={depth}
-        height={ISO_WALL_HEIGHT}
-        faces={CUBE_FACES_WALL}
-        className="iso-wall"
+        className={`iso-diamond iso-floor ${terrainClass(terrain)}`}
+        style={{ left: point.x, top: point.y, zIndex: depth * 10 }}
       />
     );
   }
@@ -290,6 +346,7 @@ function BattleTile({
   const classes = [
     'iso-diamond',
     'iso-floor',
+    terrainClass(terrain),
     'battle-iso-tile',
     highlight === 'reachable' ? 'is-reachable' : '',
     highlight === 'attackable' ? 'is-attackable' : '',
@@ -306,6 +363,40 @@ function BattleTile({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+    >
+      {/* A `background` overlay, not `background-color` on the diamond itself — either
+       * would paint *under* a terrain `background-image`, invisibly, since terrain
+       * textures are fully opaque crops (see `data/battlegrounds.ts`'s doc comment).
+       * Both overlays pulse (`@keyframes battle-tile-flash`, `battle.css`) — a flat
+       * highlight (this used to be a static `filter: brightness()` on the tile itself)
+       * was too subtle to notice over a busy terrain texture, per real user feedback:
+       * "I don't see when I can move. It should be flashing as well." */}
+      {highlight === 'reachable' ? <span className="battle-tile-reachable-overlay" /> : null}
+      {highlight === 'attackable' ? <span className="battle-tile-attackable-overlay" /> : null}
+    </button>
+  );
+}
+
+/** A non-interactive decoration (tree, building, fence...) from a country's
+ * `BattlegroundLayout.props` (`data/battlegrounds.ts`) — anchored bottom-center to its
+ * tile like `BattleUnitToken`, and given the same `isoDepth`-based `zIndex` scheme, so a
+ * unit correctly paints in front of a prop it's standing in front of on screen (and
+ * behind one further from the camera) even though every prop is rendered as one batch,
+ * separately from the tile/unit loops above and below it — z-index is explicit on all
+ * three (never `auto`), so paint order follows it, not DOM order. `pointer-events: none`
+ * (`.battle-prop`, `battle.css`): every prop sits on an already-impassable `wall` cell,
+ * so there's nothing to click here, just something to not accidentally intercept a click
+ * meant for whatever's underneath. */
+function BattleProp({ prop, bounds }: { prop: BattlegroundProp; bounds: IsoBounds }) {
+  const point = projectIsoWithin(prop.pos, bounds);
+  const depth = isoDepth(prop.pos);
+  return (
+    <img
+      src={prop.image}
+      alt=""
+      aria-hidden="true"
+      className="battle-prop"
+      style={{ left: point.x, top: point.y, zIndex: depth * 10 + 1 }}
     />
   );
 }
@@ -470,17 +561,35 @@ export function BattleView() {
   const followPointForEffect = activeForEffect
     ? projectIsoWithin(activeForEffect.pos, boundsForEffect)
     : { x: 0, y: 0 };
+  const [zoom, setZoom] = useState(1);
+  // `useBattleCamera`/`battleCamera.ts`'s clamp/center math works in on-screen px, but
+  // `boundsForEffect`/`followPointForEffect` are in the grid's own *unscaled* local
+  // space (the space `.battle-grid-iso`'s children are actually positioned in below) —
+  // scaling both by `zoom` before handing them to the camera hook is what keeps
+  // `camera.x`/`camera.y` themselves correct as plain viewport-space translate values
+  // regardless of zoom (see the `ZOOM_MIN`/`ZOOM_MAX` doc comment above for why that's
+  // safe to do without touching `camera` itself).
+  const zoomedBoundsForEffect = {
+    width: boundsForEffect.width * zoom,
+    height: boundsForEffect.height * zoom,
+  };
+  const zoomedFollowPointForEffect = {
+    x: followPointForEffect.x * zoom,
+    y: followPointForEffect.y * zoom,
+  };
   // Keyed on the active unit's position too, not just its id, so moving the active unit
-  // during its own turn re-centers the camera on it again, not just a turn change.
+  // during its own turn re-centers the camera on it again, not just a turn change — and
+  // on `zoom`, so zooming in/out re-centers (and re-clamps) on the active unit too,
+  // rather than leaving `camera` clamped for a grid footprint that just changed size.
   const followKeyForEffect = activeForEffect
-    ? `${activeForEffect.id}:${activeForEffect.pos.x},${activeForEffect.pos.y}`
-    : 'none';
+    ? `${activeForEffect.id}:${activeForEffect.pos.x},${activeForEffect.pos.y}:${zoom}`
+    : `none:${zoom}`;
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useElementSize(viewportRef);
   const { camera, pan } = useBattleCamera(
-    boundsForEffect,
+    zoomedBoundsForEffect,
     viewportSize,
-    followPointForEffect,
+    zoomedFollowPointForEffect,
     followKeyForEffect,
   );
   const scale = useStageScale();
@@ -502,6 +611,11 @@ export function BattleView() {
   }
 
   const battle = resolution.battle;
+  // Per-country terrain/props (GAME_PLAN §7.1, `data/battlegrounds.ts`) — looked up here
+  // by country rather than threaded through `resolution`, since it's a cheap, pure
+  // function of `battleCountry` alone; a country whose JSON has no `terrain`/`props` key
+  // yet renders exactly as this screen always did before this file existed.
+  const battleground = getBattleground(resolution.battleCountry);
   const active = currentUnit(battle);
   const isPlayerTurn = active.side === 'us';
   const reachable = isPlayerTurn ? reachableTiles(battle, active.id) : [];
@@ -551,11 +665,33 @@ export function BattleView() {
     }
   };
 
+  const zoomIn = () => setZoom((z) => clampZoom(z + ZOOM_STEP));
+  const zoomOut = () => setZoom((z) => clampZoom(z - ZOOM_STEP));
+
   const handleViewportKeyDown = (event: KeyboardEvent) => {
     const delta = KEY_PAN[event.key];
-    if (!delta) return;
+    if (delta) {
+      event.preventDefault();
+      pan(delta[0], delta[1]);
+      return;
+    }
+    // '=' is the unshifted key '+' shares on most keyboards, so both zoom in.
+    if (event.key === '+' || event.key === '=') {
+      event.preventDefault();
+      zoomIn();
+    } else if (event.key === '-' || event.key === '_') {
+      event.preventDefault();
+      zoomOut();
+    }
+  };
+
+  // Wheel-to-zoom, same spirit as a map app: scrolling up zooms in. `.battle-viewport`
+  // has nothing else that scrolls (the grid pans by drag/arrow-keys instead, never by
+  // native scroll), so there's no competing behavior to preserve here.
+  const handleViewportWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    pan(delta[0], delta[1]);
+    if (event.deltaY < 0) zoomIn();
+    else if (event.deltaY > 0) zoomOut();
   };
 
   // Drag-to-pan: tracked in a ref (not state) since every pointermove would otherwise
@@ -630,13 +766,35 @@ export function BattleView() {
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onClickCapture={handleViewportClickCapture}
+          onWheel={handleViewportWheel}
         >
+          <div className="battle-zoom-controls">
+            <button
+              type="button"
+              className="pixel-button battle-zoom-button"
+              onClick={zoomOut}
+              disabled={zoom <= ZOOM_MIN}
+              aria-label={t('battle.zoom.out')}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              className="pixel-button battle-zoom-button"
+              onClick={zoomIn}
+              disabled={zoom >= ZOOM_MAX}
+              aria-label={t('battle.zoom.in')}
+            >
+              +
+            </button>
+          </div>
           <div
             className="battle-grid-iso"
             style={{
               width: bounds.width,
               height: bounds.height,
-              transform: `translate(${camera.x}px, ${camera.y}px)`,
+              transform: `translate(${camera.x}px, ${camera.y}px) scale(${zoom})`,
+              transformOrigin: 'top left',
               transitionDuration: isDragging ? '0ms' : `${CAMERA_TRANSITION_MS}ms`,
             }}
           >
@@ -659,12 +817,20 @@ export function BattleView() {
                     highlight={highlight}
                     occupant={occupant}
                     disabled={!isPlayerTurn}
+                    terrain={battleground.terrain?.[y]?.[x]}
                     onClick={() => handleTileClick(x, y)}
                     t={t}
                   />
                 );
               }),
             )}
+            {(battleground.props ?? []).map((prop) => (
+              <BattleProp
+                key={`${prop.pos.x},${prop.pos.y}:${prop.image}`}
+                prop={prop}
+                bounds={bounds}
+              />
+            ))}
             {living.map((u) => (
               <BattleUnitToken
                 key={u.id}

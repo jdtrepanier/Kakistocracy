@@ -59,6 +59,30 @@
   right: 2px;
 }
 
+/* Bottom-left corner — the one spot the two roster panels above (top-left/top-right)
+ * and the round/turn text (outside `.battle-viewport` entirely) never reach, so this
+ * never fights either for space. `z-index` above both `.battle-roster-compact` and the
+ * plain `.battle-grid-iso` (no z-index of its own) so the buttons stay clickable at any
+ * zoom level, even if the grid's scaled content happens to extend under this corner. */
+.battle-zoom-controls {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+}
+
+.battle-zoom-button {
+  padding: 1px 6px;
+  line-height: 1;
+}
+
+.battle-zoom-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .battle-roster {
   list-style: none;
   margin: 0;
@@ -204,18 +228,118 @@
   cursor: default;
 }
 
+/* `cursor` only, no `background`/`filter` here — a terrain tile (`.battle-terrain-*`
+ * below) paints its texture via `background-image`, and either a `background` shorthand
+ * or a subtle `filter: brightness()` gets lost against a busy photographic texture (real
+ * user feedback, over a stone-path battlefield: "I don't see when I can move. It should
+ * be flashing as well"). The actual highlights are `.battle-tile-reachable-overlay`/
+ * `.battle-tile-attackable-overlay`, plain child spans that composite over any
+ * background instead, animated so they read clearly no matter what's underneath. */
 .iso-diamond.battle-iso-tile.is-reachable {
-  filter: brightness(1.4);
   cursor: pointer;
 }
 
 .iso-diamond.battle-iso-tile.is-attackable {
-  background: var(--orange);
   cursor: pointer;
+}
+
+.battle-tile-reachable-overlay,
+.battle-tile-attackable-overlay {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  pointer-events: none;
+  animation: battle-tile-flash 1.1s ease-in-out infinite;
+}
+
+/* `--purple`, not `--blue` — real user feedback: blue read as too close to the `water`
+ * terrain texture's own color, so a reachable tile near a river was hard to tell apart
+ * from the water itself. Purple doesn't resemble any of the five terrain textures
+ * (grass/rockyGround/stonePath's greens-browns-grays, water's blue, cliff's rock gray)
+ * or the orange attackable/gold selection accents, so it reads unambiguously as its own
+ * thing regardless of what's underneath. */
+.battle-tile-reachable-overlay {
+  background: var(--purple);
+}
+
+.battle-tile-attackable-overlay {
+  background: var(--orange);
+}
+
+/* Pulses opacity rather than toggling visibility outright, so a reduced-motion viewer
+ * (the animation is fully disabled for them, see global.css's `prefers-reduced-motion`
+ * rule) still sees a clearly-visible highlight at the animation's resting frame (0%/100%)
+ * — not a highlight that happens to be mid-fade-out when their browser freezes it. */
+@keyframes battle-tile-flash {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .iso-diamond.battle-iso-tile:disabled {
   cursor: default;
+}
+
+/* Per-country battleground terrain (`data/battlegrounds.ts`, GAME_PLAN §7.1) — a real
+ * texture instead of `.iso-floor`'s flat `--navy-light`, cropped from a user-supplied
+ * tileset (`public/assets/battle-tiles/`, reusable across countries — see that file's
+ * doc comment). Applied on top of `.iso-diamond`/`.iso-floor`; a country with no custom
+ * battleground never gets one of these classes at all, so it keeps the original flat
+ * color exactly as before this system existed. `background-size: cover` since these are
+ * plain photographic-style crops, not pre-cut exact-footprint tiles — the diamond's own
+ * `clip-path` (inherited from `.iso-diamond`) does the actual shaping. */
+.iso-diamond.battle-terrain-grass {
+  background-image: url('/assets/battle-tiles/terrain/grass.png');
+  background-size: cover;
+}
+
+.iso-diamond.battle-terrain-rockyGround {
+  background-image: url('/assets/battle-tiles/terrain/rocky-ground.png');
+  background-size: cover;
+}
+
+.iso-diamond.battle-terrain-stonePath {
+  background-image: url('/assets/battle-tiles/terrain/stone-path.png');
+  background-size: cover;
+}
+
+.iso-diamond.battle-terrain-water {
+  background-image: url('/assets/battle-tiles/terrain/water.png');
+  background-size: cover;
+}
+
+/* A cliff-textured `IsoBlock` (still the tall extruded shape — see `BattleTile`'s doc
+ * comment in `BattleView.tsx` for why `'cliff'` alone keeps the block shape). Targets the
+ * shared `.iso-face-top`/`-left`/`-right` `IsoBlocks.tsx` already renders — `-left`'s
+ * existing `filter: brightness(0.8)` still applies on top, giving the textured face the
+ * same natural side-shading the flat-color version always had. */
+.iso-block.battle-terrain-cliff .iso-face-top {
+  background-image: url('/assets/battle-tiles/terrain/cliff-top.png');
+  background-size: cover;
+}
+
+.iso-block.battle-terrain-cliff .iso-face-left,
+.iso-block.battle-terrain-cliff .iso-face-right {
+  background-image: url('/assets/battle-tiles/terrain/cliff-face.png');
+  background-size: cover;
+}
+
+/* A decorative prop (tree, building, fence...) from `BattlegroundLayout.props` —
+ * `BattleView.tsx`'s `BattleProp`. Sized as a bounding box, not a fixed size: `props` mix
+ * small fences and tall buildings from the same shared atlas, and `object-fit: contain`
+ * keeps each one's real aspect ratio inside it rather than stretching. */
+.battle-prop {
+  position: absolute;
+  transform: translate(-50%, -82%);
+  width: 34px;
+  height: 54px;
+  object-fit: contain;
+  object-position: bottom;
+  pointer-events: none;
 }
 
 /* A unit's token: the same "colored square, bottom-anchored to its tile" placeholder

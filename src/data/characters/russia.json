@@ -1,0 +1,56 @@
+[
+  {
+    "id": "russia-putin",
+    "nameKey": "battle.unit.russia.putin",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 12,
+    "placeholder": {
+      "initials": "VP",
+      "color": "#3a6ea5"
+    },
+    "sprite": {
+      "front": "/assets/sprites/russia/putin-front.png",
+      "back": "/assets/sprites/russia/putin-back.png",
+      "left": "/assets/sprites/russia/putin-left.png",
+      "right": "/assets/sprites/russia/putin-right.png"
+    }
+  },
+  {
+    "id": "russia-gorbachev",
+    "nameKey": "battle.unit.russia.gorbachev",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "MG",
+      "color": "#8f7228"
+    },
+    "sprite": {
+      "front": "/assets/sprites/russia/gorbachev-front.png",
+      "back": "/assets/sprites/russia/gorbachev-back.png",
+      "left": "/assets/sprites/russia/gorbachev-left.png",
+      "right": "/assets/sprites/russia/gorbachev-right.png"
+    }
+  },
+  {
+    "id": "russia-yeltsin",
+    "nameKey": "battle.unit.russia.yeltsin",
+    "move": 2,
+    "range": 1,
+    "power": 5,
+    "maxComposure": 12,
+    "placeholder": {
+      "initials": "BY",
+      "color": "#c8323c"
+    },
+    "sprite": {
+      "front": "/assets/sprites/russia/yeltsin-front.png",
+      "back": "/assets/sprites/russia/yeltsin-back.png",
+      "left": "/assets/sprites/russia/yeltsin-left.png",
+      "right": "/assets/sprites/russia/yeltsin-right.png"
+    }
+  }
+]

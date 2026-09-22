@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kakistocracy — Battleground Map Editor</title>
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body>
+    <header id="app-header">
+      <h1>Battleground Map Editor</h1>
+      <p class="subtitle">
+        A standalone editor for <code>src/data/battlegrounds/&lt;country&gt;.json</code> — outside
+        the game's own build, no server or install required. See
+        <a href="README.md">README.md</a> for the full guide.
+      </p>
+
+      <div class="toolbar-row">
+        <label
+          >Country:
+          <select id="country-select">
+            <option value="canada">Canada</option>
+            <option value="greenland">Greenland</option>
+            <option value="panama">Panama</option>
+            <option value="mexico">Mexico</option>
+            <option value="iran">Iran</option>
+            <option value="venezuela">Venezuela</option>
+            <option value="russia">Russia</option>
+          </select>
+        </label>
+
+        <button id="btn-autoload" type="button">Load from repo</button>
+        <button id="btn-openfile" type="button">Load JSON file…</button>
+        <input id="file-input" type="file" accept="application/json,.json" hidden />
+        <button id="btn-fsa-open" type="button" hidden>Open… (Chrome/Edge)</button>
+        <button id="btn-blank" type="button">New blank map</button>
+
+        <span class="toolbar-spacer"></span>
+
+        <button id="btn-download" type="button" class="primary">Download JSON</button>
+        <button id="btn-fsa-save" type="button" hidden disabled>Save to file</button>
+        <button id="btn-copy" type="button">Copy JSON</button>
+      </div>
+
+      <div class="toolbar-row">
+        <label
+          >Width:
+          <input id="grid-width-input" type="number" min="3" max="60" value="20" />
+        </label>
+        <label
+          >Height:
+          <input id="grid-height-input" type="number" min="3" max="60" value="14" />
+        </label>
+        <button id="btn-resize" type="button">Resize map</button>
+        <span class="hint"
+          >Keeps the top-left content; new cells default to "wall" (or grass, if terrain is
+          enabled); anything that falls outside the new size (spawns, props) is dropped.</span
+        >
+      </div>
+
+      <div id="status-bar" role="status"></div>
+    </header>
+
+    <main id="app-main">
+      <aside id="layer-panel">
+        <h2>Layer</h2>
+        <div id="layer-tabs" role="tablist">
+          <button type="button" class="layer-tab active" data-layer="grid">Grid</button>
+          <button type="button" class="layer-tab" data-layer="terrain">Terrain</button>
+          <button type="button" class="layer-tab" data-layer="props">Props</button>
+          <button type="button" class="layer-tab" data-layer="spawnsUs">US spawns</button>
+          <button type="button" class="layer-tab" data-layer="spawnsEnemy">Enemy spawns</button>
+        </div>
+
+        <div id="tool-palette"></div>
+
+        <div id="layer-hint" class="hint"></div>
+      </aside>
+
+      <section id="grid-wrapper">
+        <div class="zoom-row">
+          <span>Zoom:</span>
+          <button id="btn-zoom-out" type="button" aria-label="Zoom out">−</button>
+          <input
+            id="zoom-slider"
+            type="range"
+            min="16"
+            max="64"
+            step="4"
+            value="32"
+            aria-label="Cell size"
+          />
+          <button id="btn-zoom-in" type="button" aria-label="Zoom in">+</button>
+          <span id="zoom-label">32px</span>
+          <button id="btn-zoom-reset" type="button">Reset</button>
+        </div>
+        <div id="iso-viewport" tabindex="0">
+          <div id="iso-world"></div>
+        </div>
+        <p class="hint">
+          Isometric, same 2:1 projection as the real battle camera — this is what spatial
+          adjacency actually looks like in-game, not a flat top-down grid. Click a tile to paint;
+          click and drag to paint several at once. Pan with the scrollbars, trackpad, mouse wheel,
+          or arrow/Page/Home/End keys (click the map first to focus it).
+        </p>
+      </section>
+
+      <aside id="sidebar">
+        <h2>Legend</h2>
+        <div id="legend"></div>
+
+        <h2>Validation</h2>
+        <ul id="validation-list"></ul>
+      </aside>
+    </main>
+
+    <script src="editor.js"></script>
+  </body>
+</html>

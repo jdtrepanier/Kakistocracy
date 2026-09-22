@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { checkAvailability, type RoomId } from '@/engine/actions';
 import { getAction } from '@/data/actions';
-import { BATTLEFIELD, ENEMY_SPAWN_POSITIONS, US_SPAWN_POSITIONS } from '@/data/battlefield';
+import { getBattleground } from '@/data/battlegrounds';
 import { getBattleRoster, US_BATTLE_UNITS } from '@/data/battleRosters';
 import { DEFAULT_DIFFICULTY, getBalance, type Balance, type DifficultyId } from '@/data/balance';
 import { COUNTRIES } from '@/data/countries';
@@ -691,15 +691,20 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     if (!target?.warTarget || game.atWarWith.includes(country)) return;
 
     const balance = getBalance(difficulty);
+    // Per-country look (terrain, props — GAME_PLAN §7.1, `data/battlegrounds.ts`): only
+    // the walkable `grid` and the two spawn arrays feed the actual simulated battle;
+    // `BattleView.tsx` looks up the same `getBattleground(country)` again itself for the
+    // terrain/props it renders, rather than this resolution state carrying them around.
+    const battleground = getBattleground(country);
     const usSpawns = SWITCHABLE_CHARACTERS.map((id, i) => ({
       template: US_BATTLE_UNITS[id],
-      pos: US_SPAWN_POSITIONS[i] as GridPosition,
+      pos: battleground.usSpawns[i] as GridPosition,
     }));
     const enemySpawns = getBattleRoster(country).map((template, i) => ({
       template,
-      pos: ENEMY_SPAWN_POSITIONS[i] as GridPosition,
+      pos: battleground.enemySpawns[i] as GridPosition,
     }));
-    const battle = createBattle(BATTLEFIELD, usSpawns, enemySpawns, game.rngState);
+    const battle = createBattle(battleground.grid, usSpawns, enemySpawns, game.rngState);
     set(
       settleBattle(
         { ...resolution, phase: 'battle', battleCountry: country },

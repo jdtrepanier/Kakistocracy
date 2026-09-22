@@ -14,6 +14,14 @@ import type { GridPosition, RoomGrid, TileKind } from '@/engine/movement';
  * scroll. The obstacle cluster grew to match (a small plus-shape near the middle, plus
  * two lone blockers) rather than just stretching the same two-tile pair across a much
  * bigger open field.
+ *
+ * `BATTLEFIELD_WIDTH`/`BATTLEFIELD_HEIGHT` are no longer enforced anywhere — every
+ * country's actual battlefield now comes from its own `data/battlegrounds/<country>.json`
+ * (`data/battlegrounds.ts`), and that file's `parseGrid` derives a grid's size from its own
+ * shape rather than validating against these constants (user request: "I also want to edit
+ * the GRID_W and GRID_H"). This file and its exports still exist as the original shared
+ * layout the six non-Canada countries' JSON files were dumped from — see
+ * `battlegrounds/README.md` — but nothing imports these constants for validation anymore.
  */
 export const BATTLEFIELD_WIDTH = 20;
 export const BATTLEFIELD_HEIGHT = 14;

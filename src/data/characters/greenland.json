@@ -1,0 +1,82 @@
+[
+  {
+    "id": "greenland-bear-a",
+    "nameKey": "battle.unit.greenland.polarBearA",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 12,
+    "placeholder": {
+      "initials": "🐻",
+      "color": "#e8ecf2"
+    },
+    "sprite": {
+      "front": "/assets/sprites/greenland/bear-front.png",
+      "back": "/assets/sprites/greenland/bear-back.png"
+    }
+  },
+  {
+    "id": "greenland-bear-b",
+    "nameKey": "battle.unit.greenland.polarBearB",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 12,
+    "placeholder": {
+      "initials": "🐻",
+      "color": "#e8ecf2"
+    },
+    "sprite": {
+      "front": "/assets/sprites/greenland/bear-front.png",
+      "back": "/assets/sprites/greenland/bear-back.png"
+    }
+  },
+  {
+    "id": "greenland-bear-c",
+    "nameKey": "battle.unit.greenland.polarBearC",
+    "move": 3,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 10,
+    "placeholder": {
+      "initials": "🐻",
+      "color": "#e8ecf2"
+    },
+    "sprite": {
+      "front": "/assets/sprites/greenland/bear-front.png",
+      "back": "/assets/sprites/greenland/bear-back.png"
+    }
+  },
+  {
+    "id": "greenland-bear-boss",
+    "nameKey": "battle.unit.greenland.polarBearBoss",
+    "move": 1,
+    "range": 1,
+    "power": 6,
+    "maxComposure": 18,
+    "placeholder": {
+      "initials": "🐻",
+      "color": "#cfd8e6"
+    },
+    "sprite": {
+      "front": "/assets/sprites/greenland/bear-front.png",
+      "back": "/assets/sprites/greenland/bear-back.png"
+    }
+  },
+  {
+    "id": "greenland-seal",
+    "nameKey": "battle.unit.greenland.seal",
+    "move": 2,
+    "range": 1,
+    "power": 2,
+    "maxComposure": 3,
+    "placeholder": {
+      "initials": "🦭",
+      "color": "#7a8b99"
+    },
+    "sprite": {
+      "front": "/assets/sprites/greenland/seal-front.png",
+      "back": "/assets/sprites/greenland/seal-back.png"
+    }
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "iran-khamenei",
+    "nameKey": "battle.unit.iran.khamenei",
+    "move": 1,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "AK",
+      "color": "#2b2b2b"
+    },
+    "sprite": {
+      "front": "/assets/sprites/iran/khamenei-front.png",
+      "back": "/assets/sprites/iran/khamenei-back.png",
+      "left": "/assets/sprites/iran/khamenei-left.png",
+      "right": "/assets/sprites/iran/khamenei-right.png"
+    }
+  },
+  {
+    "id": "iran-spokesperson",
+    "nameKey": "battle.unit.iran.spokesperson",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "SP",
+      "color": "#3f9b5b"
+    },
+    "sprite": {
+      "front": "/assets/sprites/iran/official-front.png",
+      "back": "/assets/sprites/iran/official-back.png",
+      "left": "/assets/sprites/iran/official-left.png",
+      "right": "/assets/sprites/iran/official-right.png"
+    }
+  },
+  {
+    "id": "iran-tv-anchor",
+    "nameKey": "battle.unit.iran.tvAnchor",
+    "move": 2,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 10,
+    "placeholder": {
+      "initials": "TV",
+      "color": "#8f7228"
+    },
+    "sprite": {
+      "front": "/assets/sprites/iran/official-front.png",
+      "back": "/assets/sprites/iran/official-back.png",
+      "left": "/assets/sprites/iran/official-left.png",
+      "right": "/assets/sprites/iran/official-right.png"
+    }
+  },
+  {
+    "id": "iran-irgc-fighter",
+    "nameKey": "battle.unit.iran.irgcFighter",
+    "move": 3,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 9,
+    "placeholder": {
+      "initials": "IF",
+      "color": "#3a6ea5"
+    },
+    "sprite": {
+      "front": "/assets/sprites/iran/militia-front.png",
+      "back": "/assets/sprites/iran/militia-back.png",
+      "left": "/assets/sprites/iran/militia-left.png",
+      "right": "/assets/sprites/iran/militia-right.png"
+    }
+  },
+  {
+    "id": "iran-basij-volunteer",
+    "nameKey": "battle.unit.iran.basijVolunteer",
+    "move": 2,
+    "range": 1,
+    "power": 2,
+    "maxComposure": 7,
+    "placeholder": {
+      "initials": "BV",
+      "color": "#5a7a3a"
+    },
+    "sprite": {
+      "front": "/assets/sprites/iran/militia-front.png",
+      "back": "/assets/sprites/iran/militia-back.png",
+      "left": "/assets/sprites/iran/militia-left.png",
+      "right": "/assets/sprites/iran/militia-right.png"
+    }
+  }
+]

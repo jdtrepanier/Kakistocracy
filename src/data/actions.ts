@@ -675,6 +675,69 @@ export const ACTIONS: readonly ActionDef[] = [
     headlines: 20,
   },
   {
+    id: 'revoke_press_access',
+    nameKey: 'action.revokePressAccess.name',
+    // User request: "shut down access to the news provider to the White House" — read as
+    // pulling one outlet's White House press credentials, GAME_PLAN §12's "Press Pool"
+    // NPC and §13's "Journalist added to the group chat" event already establish this as
+    // an adversarial relationship, just never as its own action. Administratively trivial
+    // (no court fight modeled, no injunction system yet — see `executive_order_spree`'s own
+    // doc comment for why that's still a flat fail penalty, not a real mechanic), so the
+    // base success sits high like the other paperwork-only Trump decrees
+    // (`rename_department` 85, `rename_landmark` 90) — the real cost is optics, not
+    // difficulty.
+    actors: ['trump'],
+    room: 'roseGarden',
+    cost: { ea: 1 },
+    baseSuccess: 85,
+    onSuccess: [
+      { kind: 'delta', stat: 'happiness', amount: -4 },
+      { kind: 'delta', stat: 'iq', amount: -3 },
+      // Reserved for a future Press Pool/Fact-Checker interaction (GAME_PLAN §12/§13) —
+      // no consumer yet, same "flag now, wire up later" precedent as `ballroomBuilt`.
+      { kind: 'flag', set: 'pressAccessRevoked' },
+    ],
+    onFail: [
+      // A failed ban (reinstated by a court, or the outlet gets louder about it) reads as
+      // worse than just doing nothing — the Streisand effect, not a neutral non-event.
+      { kind: 'delta', stat: 'happiness', amount: -6 },
+      { kind: 'delta', stat: 'iq', amount: -2 },
+    ],
+    headlines: 55,
+  },
+  {
+    id: 'start_trump_tv',
+    nameKey: 'action.startTrumpTv.name',
+    // User request: "start your own Trump TV news channel" — a friendly-media
+    // counterweight to the outlet just banned above (no hard dependency between the two;
+    // either stands alone). A personal media venture, same tier of "Trump's own business
+    // side-project" as `launch_memecoin` (also Mar-a-Lago), but structurally a one-shot
+    // launch rather than a repeatable move — `oncePerRun`, same precedent as
+    // `liberation_day`/`build_ballroom`'s once-only flag-setting actions.
+    actors: ['trump'],
+    room: 'marALago',
+    cost: { ea: 2 },
+    limit: 'oncePerRun',
+    baseSuccess: 65,
+    onSuccess: [
+      { kind: 'delta', stat: 'debt', amount: 0.3 },
+      { kind: 'delta', stat: 'happiness', amount: 8 },
+      { kind: 'delta', stat: 'iq', amount: -6 },
+      // An echo chamber keeps paying off for a while after launch, not just on day one —
+      // same "immediate delta plus a fading tail" shape as `declare_war`'s own `spread`.
+      { kind: 'spread', stat: 'happiness', amount: 6, months: 6 },
+      // Reserved for a future segment/programming mechanic — no consumer yet, same
+      // "flag now, wire up later" precedent as `ballroomBuilt`/`pressAccessRevoked` above.
+      { kind: 'flag', set: 'trumpTvLaunched' },
+    ],
+    onFail: [
+      { kind: 'delta', stat: 'debt', amount: 0.15 },
+      { kind: 'delta', stat: 'happiness', amount: -3 },
+      { kind: 'delta', stat: 'iq', amount: -2 },
+    ],
+    headlines: 55,
+  },
+  {
     id: 'elon_reconciliation',
     nameKey: 'action.elonReconciliation.name',
     // GAME_PLAN §8's Rage Quit passive: "find him at Starbase with the right item" — no

@@ -3,8 +3,8 @@ import { ACTIONS, getAction } from './actions';
 import { CHARACTERS } from './characters';
 
 describe('ACTIONS', () => {
-  it('has 38 actions with unique ids', () => {
-    expect(ACTIONS).toHaveLength(38);
+  it('has 40 actions with unique ids', () => {
+    expect(ACTIONS).toHaveLength(40);
     expect(new Set(ACTIONS.map((a) => a.id)).size).toBe(ACTIONS.length);
   });
 
@@ -69,6 +69,21 @@ describe('ACTIONS', () => {
     const senateTrial = getAction('senate_trial');
     expect(senateTrial.requires?.flags).toEqual(['congressLost']);
     expect(senateTrial.room).toBe('capitol');
+  });
+
+  it('revoking press access is a Rose Garden decree that flags pressAccessRevoked on success only', () => {
+    const revokePress = getAction('revoke_press_access');
+    expect(revokePress.room).toBe('roseGarden');
+    expect(revokePress.onSuccess).toContainEqual({ kind: 'flag', set: 'pressAccessRevoked' });
+    expect(revokePress.onFail).not.toContainEqual({ kind: 'flag', set: 'pressAccessRevoked' });
+  });
+
+  it('limits launching Trump TV to once per run and flags trumpTvLaunched on success only', () => {
+    const trumpTv = getAction('start_trump_tv');
+    expect(trumpTv.limit).toBe('oncePerRun');
+    expect(trumpTv.room).toBe('marALago');
+    expect(trumpTv.onSuccess).toContainEqual({ kind: 'flag', set: 'trumpTvLaunched' });
+    expect(trumpTv.onFail).not.toContainEqual({ kind: 'flag', set: 'trumpTvLaunched' });
   });
 
   it('wires Declare War and Buy a Country to the World Map menu', () => {

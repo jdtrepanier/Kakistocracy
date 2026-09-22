@@ -1,0 +1,38 @@
+[
+  {
+    "id": "panama-toll-collector",
+    "nameKey": "battle.unit.panama.tollCollector",
+    "move": 2,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "$",
+      "color": "#3a6ea5"
+    }
+  },
+  {
+    "id": "panama-tour-guide",
+    "nameKey": "battle.unit.panama.tourGuide",
+    "move": 3,
+    "range": 1,
+    "power": 3,
+    "maxComposure": 10,
+    "placeholder": {
+      "initials": "TG",
+      "color": "#3f9b5b"
+    }
+  },
+  {
+    "id": "panama-ship-enthusiast",
+    "nameKey": "battle.unit.panama.shipEnthusiast",
+    "move": 2,
+    "range": 1,
+    "power": 4,
+    "maxComposure": 11,
+    "placeholder": {
+      "initials": "🚢",
+      "color": "#8f7228"
+    }
+  }
+]
