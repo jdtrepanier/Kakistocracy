@@ -19,18 +19,19 @@ describe('battle balance simulator', () => {
     expect(report.usWins / report.iterations).toBeLessThan(0.7);
   });
 
-  it('every other war target stays clearly winnable', () => {
-    for (const country of [
-      'greenland',
-      'panama',
-      'mexico',
-      'iran',
-      'venezuela',
-      'russia',
-    ] as const) {
+  // One `it.each` case per country rather than one loop inside a single `it` — each
+  // country's 2000-iteration simulation takes a couple of seconds on its own (Canada's own
+  // sibling test above takes ~3s solo), so bundling all six into one test body used to
+  // blow past Vitest's default 5000ms test timeout on an ordinary machine even though no
+  // individual country was slow. Splitting them out gives each its own fresh timeout
+  // budget and reports which specific country regressed instead of just "some country
+  // failed."
+  it.each(['greenland', 'panama', 'mexico', 'iran', 'venezuela', 'russia'] as const)(
+    '%s stays clearly winnable',
+    (country) => {
       const report = simulate(country, ITERATIONS);
       printReport(report);
       expect(report.usWins / report.iterations).toBeGreaterThan(0.7);
-    }
-  });
+    },
+  );
 });

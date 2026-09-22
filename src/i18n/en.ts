@@ -43,6 +43,12 @@ export const en = {
   'room.viewport.label': 'Room — use arrow keys or WASD to move',
   'room.hint.object': 'Press DECREE to act here',
 
+  'room.dpad.label': 'Move',
+  'room.dpad.up': 'Move up',
+  'room.dpad.down': 'Move down',
+  'room.dpad.left': 'Move left',
+  'room.dpad.right': 'Move right',
+
   'menu.label': 'Actions',
   'menu.decree': 'DECREE',
   'menu.talk': 'TALK',

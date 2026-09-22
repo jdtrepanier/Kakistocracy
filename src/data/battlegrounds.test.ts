@@ -227,7 +227,10 @@ describe('battleground JSON validation (parseGrid/parsePositions/parseProps)', (
     const badGrid = validGrid.map((row, y) =>
       y === 5 ? row.map((c, x) => (x === 7 ? 'lava' : c)) : row,
     );
-    expect(() => parseGrid(badGrid, TERRAIN_KINDS, 'test terrain')).toThrow(/\(7, 5\)/);
+    // validGrid is filled with 'floor' (a TILE_KIND) — must validate against TILE_KINDS,
+    // like its sibling tests just above, not TERRAIN_KINDS (which 'floor' itself would
+    // fail against, throwing on cell (0, 0) before ever reaching the injected bad cell).
+    expect(() => parseGrid(badGrid, TILE_KINDS, 'test grid')).toThrow(/\(7, 5\)/);
   });
 
   it('parsePositions accepts positions inside the given width/height', () => {
@@ -308,7 +311,11 @@ describe('loadBattleground (per-file dynamic grid size)', () => {
       usSpawns: [{ x: 5, y: 1 }],
       enemySpawns: [{ x: 2, y: 1 }],
     };
-    expect(() => loadBattleground(raw, 'canada')).toThrow(/usSpawns\[0\]/);
+    // loadBattleground wraps the field name in literal quotes when building the label it
+    // hands to parsePositions (`${label} "usSpawns"`, see battlegrounds.ts), so the thrown
+    // message reads `battlegrounds/canada.json "usSpawns"[0]: ...` — the quote sits between
+    // usSpawns and the index, which a bare /usSpawns\[0\]/ regex doesn't match.
+    expect(() => loadBattleground(raw, 'canada')).toThrow(/"usSpawns"\[0\]/);
   });
 
   it('derives grid from terrain when terrain is present, overriding a conflicting hand-typed grid value', () => {
