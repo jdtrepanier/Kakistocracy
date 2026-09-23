@@ -52,6 +52,10 @@ describe('createInitialState', () => {
     expect(state.oilPriceIndex).toBe(0);
   });
 
+  it('starts with no items', () => {
+    expect(state.items).toEqual([]);
+  });
+
   it('copies balance values instead of sharing references', () => {
     expect(state.stats).not.toBe(BALANCE.start);
     expect(state.date).not.toBe(BALANCE.calendar.start);

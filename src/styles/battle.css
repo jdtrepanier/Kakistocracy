@@ -15,12 +15,6 @@
   gap: 4px;
 }
 
-.battle-round {
-  margin: 0;
-  color: var(--cream);
-  opacity: 0.8;
-}
-
 .battle-body {
   flex: 1;
   position: relative;
@@ -312,8 +306,21 @@
   background-size: cover;
 }
 
+/* River-border shoreline textures — flat, like every kind above, not block-shaped like
+ * cliff/waterfalls below (real user request, with 5 supplied tile images: "Are you able
+ * import those tiles to allow me to generate the river border + waterfall?"). */
+.iso-diamond.battle-terrain-shoreGrass {
+  background-image: url('/assets/battle-tiles/terrain/shore-grass.png');
+  background-size: cover;
+}
+
+.iso-diamond.battle-terrain-shoreRock {
+  background-image: url('/assets/battle-tiles/terrain/shore-rock.png');
+  background-size: cover;
+}
+
 /* A cliff-textured `IsoBlock` (still the tall extruded shape — see `BattleTile`'s doc
- * comment in `BattleView.tsx` for why `'cliff'` alone keeps the block shape). Targets the
+ * comment in `BattleView.tsx` for why `BLOCK_TERRAIN` keeps the block shape). Targets the
  * shared `.iso-face-top`/`-left`/`-right` `IsoBlocks.tsx` already renders — `-left`'s
  * existing `filter: brightness(0.8)` still applies on top, giving the textured face the
  * same natural side-shading the flat-color version always had. */
@@ -325,6 +332,35 @@
 .iso-block.battle-terrain-cliff .iso-face-left,
 .iso-block.battle-terrain-cliff .iso-face-right {
   background-image: url('/assets/battle-tiles/terrain/cliff-face.png');
+  background-size: cover;
+}
+
+/* Three waterfall designs — also block-shaped (`BLOCK_TERRAIN`), since a waterfall is a
+ * vertical drop, not a flat patch. The top face reuses the existing `water.png` (the
+ * flowing river surface at the head of the falls, no new art needed); each kind's own
+ * supplied image is the side faces — the actual cascade. */
+.iso-block.battle-terrain-waterfallColumns .iso-face-top,
+.iso-block.battle-terrain-waterfallWide .iso-face-top,
+.iso-block.battle-terrain-waterfallTall .iso-face-top {
+  background-image: url('/assets/battle-tiles/terrain/water.png');
+  background-size: cover;
+}
+
+.iso-block.battle-terrain-waterfallColumns .iso-face-left,
+.iso-block.battle-terrain-waterfallColumns .iso-face-right {
+  background-image: url('/assets/battle-tiles/terrain/waterfall-columns.png');
+  background-size: cover;
+}
+
+.iso-block.battle-terrain-waterfallWide .iso-face-left,
+.iso-block.battle-terrain-waterfallWide .iso-face-right {
+  background-image: url('/assets/battle-tiles/terrain/waterfall-wide.png');
+  background-size: cover;
+}
+
+.iso-block.battle-terrain-waterfallTall .iso-face-left,
+.iso-block.battle-terrain-waterfallTall .iso-face-right {
+  background-image: url('/assets/battle-tiles/terrain/waterfall-tall.png');
   background-size: cover;
 }
 

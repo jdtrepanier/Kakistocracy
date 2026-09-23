@@ -4,6 +4,7 @@
 @import './room.css';
 @import './resolution.css';
 @import './battle.css';
+@import './intro.css';
 
 /* Palette and base settings. All sizes are in internal pixels (stage = 480×270). */
 :root {
@@ -85,6 +86,16 @@ canvas {
   overflow: hidden;
   background: var(--navy);
   box-shadow: 0 0 0 1px var(--gold-dim);
+}
+
+/* `App.tsx` adds this class (and skips mounting `<Hud />`) while a battle is on screen,
+ * real or the intro cutscene's free one. Every screen already insets itself with
+ * `inset: var(--hud-height) 0 var(--ticker-height) 0` (see the `:root` custom property
+ * above), so overriding just that one variable here — scoped to `.stage`, not `:root` —
+ * is enough for the battle screen to expand up and reclaim the HUD's usual strip with no
+ * other rule needing to know battle is happening. */
+.stage.stage-hud-hidden {
+  --hud-height: 0px;
 }
 
 .pixel-button {

@@ -38,15 +38,38 @@ const CELL_SIZE_MAX = 64;
 const CELL_SIZE_STEP = 4;
 
 const TILE_KINDS = ['floor', 'wall', 'object', 'door'];
-const TERRAIN_KINDS = ['grass', 'rockyGround', 'stonePath', 'water', 'cliff'];
+// shoreGrass/shoreRock (river-border shoreline) and waterfallColumns/waterfallWide/
+// waterfallTall (three waterfall designs) added for the user's own request, with 5
+// supplied reference tile images: "Are you able import those tiles to allow me to
+// generate the river border + waterfall?" — mirrors data/battlegrounds.ts's own
+// `TerrainKind` exactly.
+const TERRAIN_KINDS = [
+  'grass',
+  'rockyGround',
+  'stonePath',
+  'water',
+  'cliff',
+  'shoreGrass',
+  'shoreRock',
+  'waterfallColumns',
+  'waterfallWide',
+  'waterfallTall',
+];
+
+// Which TERRAIN_KINDS render as a tall extruded block instead of a flat diamond —
+// mirrors data/battlegrounds.ts's own BLOCK_TERRAIN exactly. A waterfall is a vertical
+// drop, same reasoning as a cliff, not a flat patch like a river or a shoreline texture.
+const BLOCK_TERRAIN = new Set(['cliff', 'waterfallColumns', 'waterfallWide', 'waterfallTall']);
 
 // Which TERRAIN_KINDS are walkable — mirrors data/battlegrounds.ts's own WALKABLE_TERRAIN
 // exactly (hand-ported, not a shared import, same reasoning as every other validator in
 // this file: no dependency on the game's own TypeScript/Vite toolchain). User request:
 // "The terrain map should be based on the selected background tile. You can walk on
 // grass, rocky ground and stonePath." — see `deriveGridFromTerrain` below for how this
-// actually gets applied.
-const WALKABLE_TERRAIN = new Set(['grass', 'rockyGround', 'stonePath']);
+// actually gets applied. shoreGrass is walkable (same as plain grass); shoreRock stays
+// non-walkable (rocky boulders meeting open water, not solid ground), and neither the
+// waterfalls nor cliff are walkable — all four are BLOCK_TERRAIN.
+const WALKABLE_TERRAIN = new Set(['grass', 'rockyGround', 'stonePath', 'shoreGrass']);
 
 /** Same rule as data/battlegrounds.ts's `gridFromTerrain`: a WALKABLE_TERRAIN cell becomes
  * `'floor'`, everything else becomes `'wall'`. Whenever `state.terrainEnabled` is true,
@@ -81,13 +104,27 @@ const TERRAIN_IMAGE_FILES = {
   stonePath: 'stone-path.png',
   water: 'water.png',
   cliff: 'cliff-top.png',
+  shoreGrass: 'shore-grass.png',
+  shoreRock: 'shore-rock.png',
+  // The three waterfall kinds are block-shaped (BLOCK_TERRAIN) — their top face reuses
+  // the existing water.png (the flowing river surface at the head of the falls, no new
+  // art needed); see BLOCK_TERRAIN_SIDE_IMAGE_FILES below for their own side-face art.
+  waterfallColumns: 'water.png',
+  waterfallWide: 'water.png',
+  waterfallTall: 'water.png',
 };
 
-// A cliff wall's *side* faces use a separate image from its top face (see the game's
-// own `.iso-block.battle-terrain-cliff .iso-face-left/.iso-face-right` in
-// src/styles/battle.css) — top.png is the flat rock top a unit could stand near, and
-// face.png is the vertical rock face the block's extruded sides show.
-const CLIFF_FACE_IMAGE_PATH = '/assets/battle-tiles/terrain/cliff-face.png';
+// A block-shaped terrain kind's *side* faces use a separate image from its top face (see
+// the game's own `.iso-block.battle-terrain-cliff .iso-face-left/.iso-face-right` and its
+// three waterfall siblings in src/styles/battle.css) — cliff-top.png/water.png is the
+// flat surface a unit could stand near, and these are the vertical faces the block's
+// extruded sides show (a rock face, or the actual cascade for each waterfall design).
+const BLOCK_TERRAIN_SIDE_IMAGE_FILES = {
+  cliff: 'cliff-face.png',
+  waterfallColumns: 'waterfall-columns.png',
+  waterfallWide: 'waterfall-wide.png',
+  waterfallTall: 'waterfall-tall.png',
+};
 
 // Every prop image under public/assets/battle-tiles/props/, kept in sync by hand with
 // that folder's actual contents (see src/data/battlegrounds/README.md's own copy of
@@ -127,7 +164,12 @@ const TERRAIN_IMAGES = Object.fromEntries(
     assetPathToRelative(`/assets/battle-tiles/terrain/${file}`),
   ]),
 );
-const CLIFF_FACE_IMAGE = assetPathToRelative(CLIFF_FACE_IMAGE_PATH);
+const BLOCK_TERRAIN_SIDE_IMAGES = Object.fromEntries(
+  Object.entries(BLOCK_TERRAIN_SIDE_IMAGE_FILES).map(([kind, file]) => [
+    kind,
+    assetPathToRelative(`/assets/battle-tiles/terrain/${file}`),
+  ]),
+);
 
 // ---------------------------------------------------------------------------
 // Isometric projection (ported from src/ui/room/isometric.ts) — real user feedback:
@@ -476,7 +518,7 @@ function validateState(state) {
     messages.push(
       state.terrainEnabled
         ? `${propsOnFloor.length} prop(s) sit on a walkable terrain cell (grass, rockyGround or stonePath) — units can walk right through them. Paint that cell as water or cliff on the Terrain layer if the prop should block movement.`
-        : `${propsOnFloor.length} prop(s) sit on a "floor" cell — units can walk right through them. Set that cell to "wall" too if the prop should block movement.`,
+        : `${propsOnFloor.length} prop(s) sit on a "floor" cell — units can walk right through them. New prop placements set this to "object" automatically now; repaint the Grid layer as "object" (or "wall") here to fix this existing one.`,
     );
   }
 
@@ -598,9 +640,10 @@ function makeDiamondCell(x, y, tileClass, terrainKind) {
  * pixel-perfect click target would need to hit-test through 3 separate clip-paths.
  * Clicking anywhere on a wall's silhouette selecting that wall is a fine tradeoff for a
  * hand-editing tool — zoom in for more precision if two walls' rectangles ever get hard
- * to tell apart. `terrainKind === 'cliff'` paints real rock-face textures; anything
- * else (including no terrain layer at all) is a plain colored block, same fallback
- * `--color-wall` the flat top-down editor always used. */
+ * to tell apart. `terrainKind in BLOCK_TERRAIN_SIDE_IMAGE_FILES` (cliff, or one of the
+ * three waterfall kinds) paints real textures; anything else (including no terrain layer
+ * at all) is a plain colored block, same fallback `--color-wall` the flat top-down editor
+ * always used. */
 function makeBlockCell(x, y, terrainKind) {
   const point = projectIsoWithin(x, y, isoBounds);
   const w = isoTileWidth();
@@ -609,7 +652,7 @@ function makeBlockCell(x, y, terrainKind) {
   const halfW = w / 2;
   const halfH = h / 2;
   const faces = buildCubeFaces(w, h, depth);
-  const isCliff = terrainKind === 'cliff';
+  const sideImage = BLOCK_TERRAIN_SIDE_IMAGES[terrainKind];
 
   const block = document.createElement('div');
   block.className = 'iso-block tile-wall';
@@ -624,7 +667,7 @@ function makeBlockCell(x, y, terrainKind) {
   top.style.width = `${w}px`;
   top.style.height = `${h}px`;
   top.style.clipPath = faces.top;
-  if (isCliff) top.style.backgroundImage = `url("${TERRAIN_IMAGES.cliff}")`;
+  if (sideImage) top.style.backgroundImage = `url("${TERRAIN_IMAGES[terrainKind]}")`;
 
   const left = document.createElement('div');
   left.className = 'iso-face iso-face-left';
@@ -632,7 +675,7 @@ function makeBlockCell(x, y, terrainKind) {
   left.style.width = `${halfW}px`;
   left.style.height = `${halfH + depth}px`;
   left.style.clipPath = faces.left;
-  if (isCliff) left.style.backgroundImage = `url("${CLIFF_FACE_IMAGE}")`;
+  if (sideImage) left.style.backgroundImage = `url("${sideImage}")`;
 
   const right = document.createElement('div');
   right.className = 'iso-face iso-face-right';
@@ -641,7 +684,7 @@ function makeBlockCell(x, y, terrainKind) {
   right.style.width = `${halfW}px`;
   right.style.height = `${halfH + depth}px`;
   right.style.clipPath = faces.right;
-  if (isCliff) right.style.backgroundImage = `url("${CLIFF_FACE_IMAGE}")`;
+  if (sideImage) right.style.backgroundImage = `url("${sideImage}")`;
 
   block.appendChild(top);
   block.appendChild(left);
@@ -654,7 +697,10 @@ function attachCellListeners(node, x, y) {
     e.preventDefault();
     onCellPointerDown(x, y);
   });
-  node.addEventListener('pointerenter', () => onCellPointerEnter(x, y));
+  // The event itself is passed through (not just x/y) so `onCellPointerEnter` can
+  // double-check the button is actually still held — see that function's own comment
+  // for why the `painting` flag alone isn't a reliable enough signal.
+  node.addEventListener('pointerenter', (e) => onCellPointerEnter(x, y, e));
 }
 
 function buildGridDom() {
@@ -692,7 +738,7 @@ function renderCell(x, y) {
   } else {
     const tile = state.grid[y][x];
     const terrainKind = state.terrainEnabled ? state.terrain[y][x] : undefined;
-    const isBlock = tile === 'wall' && (!state.terrainEnabled || terrainKind === 'cliff');
+    const isBlock = tile === 'wall' && (!state.terrainEnabled || BLOCK_TERRAIN.has(terrainKind));
     node = isBlock ? makeBlockCell(x, y, terrainKind) : makeDiamondCell(x, y, tile, terrainKind);
   }
   attachCellListeners(node, x, y);
@@ -771,8 +817,23 @@ function onCellPointerDown(x, y) {
   applyPaint(x, y, true);
 }
 
-function onCellPointerEnter(x, y) {
+/** Real user feedback: "the map editor should only apply tiles when pressing the mouse
+ * down" — painting was already gated on the `painting` flag (set on `pointerdown`,
+ * cleared on `pointerup`/`pointercancel`, see below), which is the right shape for
+ * "paint while dragging, stop on release." The actual bug is that a mouse release
+ * *outside the browser window* never reaches this page as a `pointerup` at all — there's
+ * no DOM to dispatch it to — so `painting` stayed stuck `true`, and dragging back over
+ * the grid (or just hovering it later) kept painting with the button no longer held.
+ * `event.buttons` is a live, authoritative read of which buttons are actually down right
+ * now, independent of whether we ever got the matching `pointerup` — checking it here
+ * self-heals the stuck-flag case the instant the pointer re-enters any cell, on top of
+ * the `pointerup`/`pointercancel`/blur listeners below that handle the common case. */
+function onCellPointerEnter(x, y, event) {
   if (!painting || !state) return;
+  if (event && typeof event.buttons === 'number' && (event.buttons & 1) === 0) {
+    painting = false;
+    return;
+  }
   applyPaint(x, y, false);
 }
 
@@ -827,6 +888,28 @@ function applyPaint(x, y, isFirst) {
       break;
     case 'props':
       setProp(x, y, activeTool);
+      // Real user feedback: "The props in map editor should mark the grid as object by
+      // default" — previously, placing a prop never touched the grid at all, so a newly
+      // placed building/tree/fence silently sat on a walkable "floor" cell until someone
+      // separately remembered to switch to the Grid layer and paint "object" (or "wall")
+      // at the same spot — exactly the "prop(s) sit on a floor cell" warning below exists
+      // to catch after the fact. Now placing a prop marks that cell "object" itself, so
+      // the common case (a decorative prop should block movement) needs no second step;
+      // erasing a prop deliberately leaves the grid value alone, since there's no way to
+      // tell an auto-set "object" apart from a hand-painted "wall"/"object" that happened
+      // to have a prop on it, and silently reverting could undo real map design. Only
+      // applies while terrain is disabled — once terrain governs walkability (see the
+      // 'terrain' case above), a hand-set grid value here would just be silently
+      // overwritten the next time that cell's terrain is repainted, or ignored outright by
+      // the real game loader (`gridFromTerrain` never reads `grid` at all when `terrain`
+      // is present) — the validation panel below flags that case with its own message
+      // pointing at the Terrain layer instead.
+      if (activeTool.type !== 'erase' && !state.terrainEnabled) {
+        state.grid[y][x] = 'object';
+        // Grid kind can change which shape this cell renders as (flat diamond vs.
+        // extruded block), so the tile DOM node itself needs rebuilding too.
+        renderCell(x, y);
+      }
       // Props are overlay siblings of the tile grid, not part of the cell
       // node itself — rebuild the overlay layer, not the cell.
       renderOverlays();
@@ -1390,10 +1473,20 @@ el.zoomSlider.addEventListener('input', () => {
 // Init
 // ---------------------------------------------------------------------------
 
-document.addEventListener('pointerup', () => {
+// Stops a drag-paint in progress. Wired to every way a drag can end short of a plain
+// `pointerup` over the page — `pointercancel` (the browser aborts the pointer stream,
+// e.g. a system gesture interrupts it) and a window `blur` (alt-tabbing, or a native
+// file/save dialog opening, mid-drag) — on top of `pointerup` itself. None of these are
+// strictly required for correctness any more (`onCellPointerEnter`'s own `event.buttons`
+// check self-heals a missed one), but resetting promptly here still means a real
+// `pointerdown` next time starts clean rather than relying on that self-heal.
+function stopPainting() {
   painting = false;
   paintAction = null;
-});
+}
+document.addEventListener('pointerup', stopPainting);
+document.addEventListener('pointercancel', stopPainting);
+window.addEventListener('blur', stopPainting);
 
 syncResizeInputs();
 setCellSize(CELL_SIZE_DEFAULT);

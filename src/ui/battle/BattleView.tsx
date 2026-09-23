@@ -7,7 +7,12 @@ import {
   type PointerEvent,
   type WheelEvent,
 } from 'react';
-import { getBattleground, type BattlegroundProp, type TerrainKind } from '@/data/battlegrounds';
+import {
+  BLOCK_TERRAIN,
+  getBattleground,
+  type BattlegroundProp,
+  type TerrainKind,
+} from '@/data/battlegrounds';
 import { displayName } from '@/data/characters';
 import { US_BADGE, US_COLOR, getCountry } from '@/data/countries';
 import {
@@ -20,7 +25,7 @@ import {
   type BattleUnit,
 } from '@/engine/battle';
 import type { GridPosition, TileKind } from '@/engine/movement';
-import type { CharacterId } from '@/engine/types';
+import type { CharacterId, CountryId } from '@/engine/types';
 import { useGameStore } from '@/store/gameStore';
 import { playBattleMusic, playSfx, stopBattleMusic, type SfxId } from '../audio/sfx';
 import { IsoBlock } from '../room/IsoBlocks';
@@ -67,13 +72,29 @@ const KEY_PAN: Readonly<Record<string, readonly [number, number]>> = {
  * in the same `transform` — per the CSS transform-list spec that composes right-to-left,
  * so `scale` acts on the grid's own local content first and `translate` moves the
  * already-scaled result in the viewport's own (zoom-independent) pixel space. That's
- * exactly why `camera.x`/`camera.y` themselves never need to change with zoom — only the
- * *inputs* to `centerOn`/`clampCamera` do, since the grid's on-screen footprint and any
- * point on it both scale by `zoom` before landing at `camera.x/y` (see
- * `zoomedBoundsForEffect`/`zoomedFollowPointForEffect` below). */
+ * exactly why `camera.x`/`camera.y` themselves are always plain viewport-local px,
+ * regardless of zoom — only the *inputs* to `centerOn`/`clampCamera` need scaling by
+ * `zoom` first (see `zoomedBoundsForEffect`/`zoomedFollowPointForEffect` below), and why
+ * `zoomAt`'s own math (below `handleTileClick`) can treat `camera.x/y` and a raw cursor
+ * position as the same coordinate space.
+ *
+ * **Zooms around a point, not always the active unit** (real user feedback: "the zoom
+ * should be on the mouse cursor position, not on the current player" — this used to
+ * re-center on the active unit on every zoom change, via `zoom` being part of
+ * `followKeyForEffect`; it no longer is, see that variable's own comment). `zoomAt`
+ * below is the shared implementation: the wheel handler anchors on the real cursor
+ * position, and the +/- buttons and keyboard shortcuts (which have no meaningful cursor
+ * position over the map) anchor on the viewport's own center instead. */
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2;
 const ZOOM_STEP = 0.25;
+
+/** `.battle-roster-compact`'s width in `battle.css` — kept in sync by hand, same
+ * precedent as `mapeditor/editor.js`'s `CELL_SIZE_DEFAULT` mirroring the real game's
+ * `ISO_TILE_WIDTH`. Passed to `useBattleCamera` as its `horizontalPadding` — see
+ * `clampCamera`'s own doc comment (`battleCamera.ts`) for why the roster panels need
+ * extra pan range, not just a plain edge clamp. */
+const ROSTER_PANEL_WIDTH = 92;
 
 function clampZoom(z: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
@@ -268,13 +289,14 @@ function terrainClass(terrain: TerrainKind | undefined): string {
 
 /** One battlefield cell. Three render shapes, not two — added alongside the per-country
  * terrain system (`data/battlegrounds.ts`, GAME_PLAN §7.1):
- * - `tile === 'wall'` with terrain `'cliff'` (or no terrain at all, every country before
- *   this system existed): the original tall extruded `IsoBlock` — a rock face genuinely
- *   should stand up off the field.
- * - `tile === 'wall'` with any other terrain (e.g. `'water'`, or a grassy tile a tree
- *   prop stands on): a flat, non-interactive, textured diamond — impassable per the
- *   engine's plain `floor`/`wall` grid either way, but a river or a tree-stump patch
- *   shouldn't stand up like a rock does.
+ * - `tile === 'wall'` with a `BLOCK_TERRAIN` kind (`'cliff'`, or one of the three
+ *   waterfall kinds — see `data/battlegrounds.ts`'s own doc comment) or no terrain at
+ *   all (every country before this system existed): the original tall extruded
+ *   `IsoBlock` — a rock face or a waterfall genuinely should stand up off the field.
+ * - `tile === 'wall'` with any other terrain (e.g. `'water'`, `'shoreRock'`, or a grassy
+ *   tile a tree prop stands on): a flat, non-interactive, textured diamond — impassable
+ *   per the engine's plain `floor`/`wall` grid either way, but a river or a tree-stump
+ *   patch shouldn't stand up like a rock does.
  * - `tile === 'floor'`: the original clickable diamond, now with an optional terrain
  *   texture and (for the attackable highlight) an overlay span rather than a flat
  *   `background` color, since a `background` shorthand would otherwise blank out
@@ -322,7 +344,7 @@ function BattleTile({
       });
 
   if (tile === 'wall') {
-    if (terrain === undefined || terrain === 'cliff') {
+    if (terrain === undefined || BLOCK_TERRAIN.has(terrain)) {
       return (
         <IsoBlock
           key={key}
@@ -502,6 +524,30 @@ function BattleUnitToken({
   );
 }
 
+/** Lets a caller other than `ResolutionOverlay` drive this same screen with its own
+ * battle state instead of the store's `resolution.battle`/`battleCountry` — added for
+ * the opening cutscene's free/no-stat-effect Canada battle (`ui/screens/IntroScreen.tsx`,
+ * see GAME_PLAN's opening-cutscene feature), which deliberately runs a battle *outside*
+ * `resolution` entirely so its outcome never reaches `resolveBattleAction`/applies a real
+ * stat delta. Every field is optional and falls back to the store's own `resolution`
+ * exactly as before — `ResolutionOverlay`'s existing `<BattleView />` call site (no
+ * props) is completely unaffected by this. A lighter-weight "props override the store"
+ * shim was chosen over refactoring this whole 800+-line component to *always* take props
+ * (and threading them through `ResolutionOverlay` too) — much less risk of regressing the
+ * real declare-war flow for a feature that only needs one more caller. */
+export interface BattleViewProps {
+  readonly battle?: BattleState;
+  readonly battleCountry?: CountryId;
+  /** Called instead of the store's `battleMove` when `battle` is supplied. */
+  readonly onMove?: (pos: GridPosition) => void;
+  /** Called instead of the store's `battleAttack` when `battle` is supplied. */
+  readonly onAttack?: (targetId: string) => void;
+  /** Called instead of the store's `battleEndTurn` when `battle` is supplied. */
+  readonly onEndTurn?: () => void;
+  /** Called instead of the store's `battleRunEnemyTurn` when `battle` is supplied. */
+  readonly onRunEnemyTurn?: () => void;
+}
+
 /**
  * The tactical battle screen (GAME_PLAN §7.1): declaring war plays out here instead of
  * an instant roll. Rendered on the same isometric camera as the room view (`ui/room/`,
@@ -509,15 +555,24 @@ function BattleUnitToken({
  * game — it reuses `ui/room/isometric.ts`'s projection math and `IsoBlocks.tsx`'s tile
  * primitives, adding only what's battle-specific (clickable tiles, unit tokens).
  */
-export function BattleView() {
+export function BattleView(props: BattleViewProps = {}) {
   const t = useT();
   const resolution = useGameStore((s) => s.resolution);
-  const battleMove = useGameStore((s) => s.battleMove);
-  const battleAttack = useGameStore((s) => s.battleAttack);
-  const battleEndTurn = useGameStore((s) => s.battleEndTurn);
-  const battleRunEnemyTurn = useGameStore((s) => s.battleRunEnemyTurn);
+  const storeBattleMove = useGameStore((s) => s.battleMove);
+  const storeBattleAttack = useGameStore((s) => s.battleAttack);
+  const storeBattleEndTurn = useGameStore((s) => s.battleEndTurn);
+  const storeBattleRunEnemyTurn = useGameStore((s) => s.battleRunEnemyTurn);
 
-  const battleForEffect = resolution?.phase === 'battle' ? resolution.battle : undefined;
+  const battleMove = props.onMove ?? storeBattleMove;
+  const battleAttack = props.onAttack ?? storeBattleAttack;
+  const battleEndTurn = props.onEndTurn ?? storeBattleEndTurn;
+  const battleRunEnemyTurn = props.onRunEnemyTurn ?? storeBattleRunEnemyTurn;
+
+  const battle = props.battle ?? (resolution?.phase === 'battle' ? resolution.battle : undefined);
+  const battleCountry =
+    props.battleCountry ?? (resolution?.phase === 'battle' ? resolution.battleCountry : undefined);
+
+  const battleForEffect = battle;
   const activeForEffect = battleForEffect ? currentUnit(battleForEffect) : null;
 
   // Enemy turns play themselves out — there's no one to click for them — on a short
@@ -561,7 +616,10 @@ export function BattleView() {
   const followPointForEffect = activeForEffect
     ? projectIsoWithin(activeForEffect.pos, boundsForEffect)
     : { x: 0, y: 0 };
-  const [zoom, setZoom] = useState(1);
+  // Real user feedback: "The battle should start zoomed out." Starts at `ZOOM_MIN`
+  // rather than 1× so the whole 20×14 map is visible (or as close to it as the viewport
+  // allows) the instant a battle opens, instead of requiring a manual zoom-out first.
+  const [zoom, setZoom] = useState(ZOOM_MIN);
   // `useBattleCamera`/`battleCamera.ts`'s clamp/center math works in on-screen px, but
   // `boundsForEffect`/`followPointForEffect` are in the grid's own *unscaled* local
   // space (the space `.battle-grid-iso`'s children are actually positioned in below) —
@@ -578,19 +636,26 @@ export function BattleView() {
     y: followPointForEffect.y * zoom,
   };
   // Keyed on the active unit's position too, not just its id, so moving the active unit
-  // during its own turn re-centers the camera on it again, not just a turn change — and
-  // on `zoom`, so zooming in/out re-centers (and re-clamps) on the active unit too,
-  // rather than leaving `camera` clamped for a grid footprint that just changed size.
+  // during its own turn re-centers the camera on it again, not just a turn change.
+  // Deliberately does *not* include `zoom` any more (real user feedback: "the zoom
+  // should be on the mouse cursor position, not on the current player") — zooming used
+  // to force a recenter on the active unit through this key changing; now a zoom is
+  // handled entirely by `zoomAt` below (via `setCameraFor`), which repositions the
+  // camera around whatever point was zoomed on instead of yanking it back to the active
+  // unit. A turn change still recenters using whatever the *current* zoom level is,
+  // since `zoomedBoundsForEffect`/`zoomedFollowPointForEffect` are always computed
+  // fresh from the current `zoom` state regardless of what's in this key.
   const followKeyForEffect = activeForEffect
-    ? `${activeForEffect.id}:${activeForEffect.pos.x},${activeForEffect.pos.y}:${zoom}`
-    : `none:${zoom}`;
+    ? `${activeForEffect.id}:${activeForEffect.pos.x},${activeForEffect.pos.y}`
+    : 'none';
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useElementSize(viewportRef);
-  const { camera, pan } = useBattleCamera(
+  const { camera, pan, setCameraFor } = useBattleCamera(
     zoomedBoundsForEffect,
     viewportSize,
     zoomedFollowPointForEffect,
     followKeyForEffect,
+    ROSTER_PANEL_WIDTH,
   );
   const scale = useStageScale();
   const [isDragging, setIsDragging] = useState(false);
@@ -601,21 +666,15 @@ export function BattleView() {
     viewportRef.current?.focus();
   }, []);
 
-  if (
-    !resolution ||
-    resolution.phase !== 'battle' ||
-    !resolution.battle ||
-    !resolution.battleCountry
-  ) {
+  if (!battle || !battleCountry) {
     return null;
   }
 
-  const battle = resolution.battle;
   // Per-country terrain/props (GAME_PLAN §7.1, `data/battlegrounds.ts`) — looked up here
   // by country rather than threaded through `resolution`, since it's a cheap, pure
   // function of `battleCountry` alone; a country whose JSON has no `terrain`/`props` key
   // yet renders exactly as this screen always did before this file existed.
-  const battleground = getBattleground(resolution.battleCountry);
+  const battleground = getBattleground(battleCountry);
   const active = currentUnit(battle);
   const isPlayerTurn = active.side === 'us';
   const reachable = isPlayerTurn ? reachableTiles(battle, active.id) : [];
@@ -641,7 +700,7 @@ export function BattleView() {
   // filters/sets fresh each render (`usUnits`/`enemyUnits` above).
   const occludingIds = unitsOccludingActive(living, active.id);
   const lastLog = battle.log[battle.log.length - 1];
-  const enemyCountry = getCountry(resolution.battleCountry);
+  const enemyCountry = getCountry(battleCountry);
   const unitColor = (unit: BattleUnit) => (unit.side === 'us' ? US_COLOR : enemyCountry.color);
   const unitBadge = (unit: BattleUnit) => (unit.side === 'us' ? US_BADGE : enemyCountry.badge);
 
@@ -665,8 +724,35 @@ export function BattleView() {
     }
   };
 
-  const zoomIn = () => setZoom((z) => clampZoom(z + ZOOM_STEP));
-  const zoomOut = () => setZoom((z) => clampZoom(z - ZOOM_STEP));
+  // Zooms around `anchor` (a point in `.battle-viewport`-local px — the same coordinate
+  // space `camera.x/y` live in, see the `ZOOM_MIN`/`ZOOM_MAX` doc comment above) rather
+  // than always recentering on the active unit: finds the grid-local point currently
+  // under `anchor` at the *old* zoom, then solves for the camera offset that puts that
+  // same grid-local point back under `anchor` at the *new* zoom — the standard
+  // "zoom to a point" trick a map app uses so whatever you're pointing at stays put
+  // while everything around it scales. `nextGridSize` (the grid's on-screen footprint
+  // *at the new zoom*) is computed here from the unscaled `bounds`, rather than read off
+  // `zoomedBoundsForEffect`, since that still reflects the *current* render's zoom —
+  // `setCameraFor` needs the size the grid is *about* to become.
+  const zoomAt = (nextZoom: number, anchor: { x: number; y: number }) => {
+    const clamped = clampZoom(nextZoom);
+    if (clamped === zoom) return;
+    const gridX = (anchor.x - camera.x) / zoom;
+    const gridY = (anchor.y - camera.y) / zoom;
+    setZoom(clamped);
+    setCameraFor(
+      { x: anchor.x - gridX * clamped, y: anchor.y - gridY * clamped },
+      { width: bounds.width * clamped, height: bounds.height * clamped },
+    );
+  };
+
+  // Anchor for the +/- buttons and keyboard shortcuts, neither of which has a
+  // meaningful cursor position over the map itself (a button click's cursor is off in a
+  // viewport corner) — the viewport's own center is the least surprising default,
+  // keeping whatever's currently in the middle of the view in the middle after zooming.
+  const viewportCenter = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
+  const zoomIn = () => zoomAt(zoom + ZOOM_STEP, viewportCenter);
+  const zoomOut = () => zoomAt(zoom - ZOOM_STEP, viewportCenter);
 
   const handleViewportKeyDown = (event: KeyboardEvent) => {
     const delta = KEY_PAN[event.key];
@@ -685,13 +771,26 @@ export function BattleView() {
     }
   };
 
-  // Wheel-to-zoom, same spirit as a map app: scrolling up zooms in. `.battle-viewport`
-  // has nothing else that scrolls (the grid pans by drag/arrow-keys instead, never by
-  // native scroll), so there's no competing behavior to preserve here.
+  // Wheel-to-zoom, same spirit as a map app: scrolling up zooms in, anchored on the
+  // cursor's actual position over the map (real user feedback: "the zoom should be on
+  // the mouse cursor position, not on the current player") rather than the viewport
+  // center `zoomIn`/`zoomOut` fall back to. `.battle-viewport` has nothing else that
+  // scrolls (the grid pans by drag/arrow-keys instead, never by native scroll), so
+  // there's no competing behavior to preserve here. Divided by `scale` for the same
+  // reason `handleViewportPointerMove`'s drag delta is — `event.clientX/Y` are real
+  // screen px, but `camera.x/y` (and so `anchor`) live in stage-internal px, one more
+  // factor smaller whenever the whole game is zoomed above 1× by `useStageScale`.
   const handleViewportWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (event.deltaY < 0) zoomIn();
-    else if (event.deltaY > 0) zoomOut();
+    const rect = viewportRef.current?.getBoundingClientRect();
+    const anchor = rect
+      ? {
+          x: (event.clientX - rect.left) / (scale || 1),
+          y: (event.clientY - rect.top) / (scale || 1),
+        }
+      : viewportCenter;
+    if (event.deltaY < 0) zoomAt(zoom + ZOOM_STEP, anchor);
+    else if (event.deltaY > 0) zoomAt(zoom - ZOOM_STEP, anchor);
   };
 
   // Drag-to-pan: tracked in a ref (not state) since every pointermove would otherwise
@@ -746,13 +845,22 @@ export function BattleView() {
     suppressClickRef.current = false;
   };
 
-  return (
-    <div className="menu-overlay battle-overlay" role="dialog" aria-modal="true">
-      <h2 className="menu-overlay-title">
-        {t('battle.title', { country: t(getCountry(resolution.battleCountry).nameKey) })}
-      </h2>
-      <p className="battle-round">{t('battle.round', { n: battle.round })}</p>
+  // Real user feedback: hide "the bar 'Battle 1: Canada...'" — the `<h2>` title plus the
+  // round-count line that used to sit above the map, taking up vertical space on a
+  // battle screen that's otherwise meant to be full-screen (see the earlier "bigger
+  // battlefield" entry in CLAUDE.md). The same information isn't lost, just moved off
+  // the visible layout: it's now the dialog's own `aria-label`, so a screen reader still
+  // announces which country and which round this is, even though there's no longer a
+  // visible bar for a sighted player to read it from.
+  const battleDialogLabel = `${t('battle.title', { country: t(getCountry(battleCountry).nameKey) })} — ${t('battle.round', { n: battle.round })}`;
 
+  return (
+    <div
+      className="menu-overlay battle-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={battleDialogLabel}
+    >
       <div className="battle-body">
         <div
           ref={viewportRef}

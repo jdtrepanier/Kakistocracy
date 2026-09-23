@@ -1,5 +1,12 @@
 import type { RoomId } from '@/engine/actions';
-import type { GridPosition, RoomGrid, TileKind } from '@/engine/movement';
+import {
+  step,
+  type Direction,
+  type GridPosition,
+  type RoomGrid,
+  type TileKind,
+} from '@/engine/movement';
+import type { ItemId } from '@/engine/types';
 
 /**
  * Room slice (GAME_PLAN §17): walkable CSS/DOM tile grids (see the "Room rendering"
@@ -29,6 +36,11 @@ export interface RoomLayout {
   readonly start: GridPosition;
   /** The single action-bound object tile in this room (GAME_PLAN §11 "DECREE"). */
   readonly objectAt: GridPosition;
+  /** A grabbable item's pedestal (real user feedback: "you can also put an autopen item
+   * somewhere else that you can grab" — `data/items.ts`'s own doc comment has the full
+   * story). Optional: most rooms have none. Always set together with `itemId`. */
+  readonly itemAt?: GridPosition;
+  readonly itemId?: ItemId;
   readonly doors: readonly { readonly at: GridPosition; readonly to: RoomId }[];
 }
 
@@ -36,6 +48,7 @@ const TILE_LEGEND: Readonly<Record<string, TileKind>> = {
   '#': 'wall',
   '.': 'floor',
   O: 'object',
+  I: 'item',
   D: 'door',
 };
 
@@ -57,7 +70,7 @@ const OVAL_OFFICE_ROWS = [
   '#............................#',
   '#..............O.............#',
   'D............................D',
-  '#............................#',
+  '#.........I..................#',
   '#............................D',
   '#............................#',
   '#............................#',
@@ -187,6 +200,8 @@ export const ROOM_LAYOUTS: readonly RoomLayout[] = [
     grid: parseGrid(OVAL_OFFICE_ROWS),
     start: { x: 2, y: 5 },
     objectAt: { x: 15, y: 4 },
+    itemAt: { x: 10, y: 6 },
+    itemId: 'autopen',
     doors: [
       { at: { x: 29, y: 5 }, to: 'treasury' },
       { at: { x: 0, y: 5 }, to: 'federalReserve' },
@@ -282,4 +297,21 @@ export function getRoomLayout(id: RoomId): RoomLayout {
  * which is deliberately a menu, not a room (see the file doc comment above). */
 export function hasRoomLayout(id: RoomId): boolean {
   return ROOM_LAYOUTS.some((r) => r.id === id);
+}
+
+/** The `ItemId` the player would grab by pressing ITEM right now, or `undefined` if
+ * they're not facing a room's item pedestal at all — mirrors the DECREE object's own
+ * "face it, then act" convention (`RoomView.tsx`'s `facingObject`), just for `itemAt`/
+ * `itemId` instead of `objectAt`. Doesn't check whether the item's already been
+ * collected — `store/gameStore.ts`'s `grabItem` is what's idempotent, this is just
+ * "what's on the tile in front of you." */
+export function facingItem(
+  roomId: RoomId,
+  pos: GridPosition,
+  facing: Direction,
+): ItemId | undefined {
+  const layout = getRoomLayout(roomId);
+  if (!layout.itemAt || !layout.itemId) return undefined;
+  const target = step(pos, facing);
+  return target.x === layout.itemAt.x && target.y === layout.itemAt.y ? layout.itemId : undefined;
 }

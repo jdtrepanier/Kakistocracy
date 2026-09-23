@@ -11,6 +11,27 @@ export const en = {
   'game.buildInfo': 'PHASE 4 · VERTICAL SLICE',
   'game.cabinet': 'The cabinet',
 
+  // Opening cutscene (`ui/screens/IntroScreen.tsx`): plays once at the start of every
+  // new game, skippable — Trump and Vance's Oval Office bit ending in a free,
+  // no-stat-effect skirmish against Canada (`store/gameStore.ts`'s `introBattle`).
+  'intro.line1': 'Hey J.D., is it better if inflation goes up or down again?',
+  'intro.line2': 'Inflate means bigger is better!',
+  'intro.line3': "Then let's attack India.",
+  'intro.line4': 'My wife comes from India.',
+  'intro.line5': 'Who could we attack, then?',
+  'intro.canFalls': 'A can clatters to the floor, from nowhere in particular.',
+  'intro.pickUp': 'A "Can of Meat"! Obtained.',
+  'intro.itemObtained': 'Obtained: Can of Meat',
+  'intro.zoomCaption': "Looks foreign. Probably Canada's fault.",
+  'intro.skip': 'Skip',
+  'intro.skip.label': 'Skip the opening cutscene',
+  'intro.continuePrompt': 'Click, or press Enter/Space, to continue',
+  'intro.beginBattle': 'Attack Canada',
+  'intro.beginTerm': 'Begin the Term',
+  'intro.battleWin': 'A resounding, entirely meaningless victory over Canada.',
+  'intro.battleLose':
+    "A resounding, entirely meaningless defeat. Canada's maple syrup reserves are safe — for now.",
+
   'hud.label': 'National status',
   'hud.date': 'DATE',
   'hud.debt': 'DEBT',
@@ -42,6 +63,7 @@ export const en = {
   'room.window.label': 'Current room',
   'room.viewport.label': 'Room — use arrow keys or WASD to move',
   'room.hint.object': 'Press DECREE to act here',
+  'room.hint.item': 'Press ITEM to grab this',
 
   'room.dpad.label': 'Move',
   'room.dpad.up': 'Move up',
@@ -54,8 +76,13 @@ export const en = {
   'menu.talk': 'TALK',
   'menu.talk.stub': "Nobody's in the mood to chat yet — dialogue arrives in a later phase.",
   'menu.item': 'ITEM',
-  'menu.item.stub': 'No items yet — the inventory arrives in a later phase.',
   'menu.switch': 'SWITCH',
+
+  'item.empty': "Pockets are empty. Nothing's been grabbed yet.",
+  'item.canOfMeat.name': 'Mystery Can of Meat',
+  'item.canOfMeat.description': "Foreign. Probably Canada's fault.",
+  'item.autopen.name': 'Autopen',
+  'item.autopen.description': "Signs your name so you don't have to. Very hands-on.",
 
   'toolbar.actions': 'Executive Actions',
   'toolbar.map': 'World Map',

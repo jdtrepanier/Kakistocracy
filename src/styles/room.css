@@ -109,6 +109,13 @@
   background: var(--blue);
 }
 
+/* A grabbable item's pedestal — gold-toned, distinct from a DECREE object's blue, so it
+ * reads as "something you can pick up" rather than "something you interact with in
+ * place" (see `RoomView.tsx`'s own `renderCell` comment for the 'item' tile). */
+.iso-block.iso-item .iso-face {
+  background: var(--gold);
+}
+
 .iso-face-left {
   filter: brightness(0.8);
 }
@@ -236,6 +243,56 @@
   flex: 1;
   color: var(--cream);
   line-height: 1.5;
+}
+
+/* ITEM overlay (`ItemOverlay.tsx`) — a plain list, same shape as `.action-list`. */
+.item-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.item-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.item-icon-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cream);
+  font-size: 6px;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--cream);
+}
+
+.item-name {
+  color: var(--gold);
+}
+
+.item-description {
+  opacity: 0.85;
+  line-height: 1.4;
 }
 
 /* World Map menu, and the target-select screen (SelectCountryScreen.tsx) that reuses it.

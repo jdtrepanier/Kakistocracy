@@ -26,6 +26,14 @@ export type LandmarkId =
   | 'pacificOcean'
   | 'mississippiRiver';
 
+/** Collectible flavor items (real user feedback: "the can of meat should stay in your
+ * items" — the opening cutscene's can was purely narrative before this, never added to
+ * any real state — "you can also put an autopen item somewhere else that you can grab").
+ * Pure flavor/collectibles, not a mechanic: nothing in the effect DSL reads `items`, the
+ * same "reserved, no consumer yet" spirit this file already has for a few flag names. See
+ * `data/items.ts`. */
+export type ItemId = 'can-of-meat' | 'autopen';
+
 /** A month on the game calendar. `month` is 1–12. */
 export interface GameDate {
   readonly year: number;
@@ -170,5 +178,9 @@ export interface GameState {
    * feels it through Felt Inflation drifting up (a loss) or easing (a win) over the
    * following months, never as a number of its own. */
   readonly oilPriceIndex: number;
+  /** Collectible flavor items picked up so far (GAME_PLAN's opening cutscene and any
+   * grabbable room item — see `ItemId`'s doc comment). Order is pickup order; duplicates
+   * never occur (`grabItem` in `store/gameStore.ts` is idempotent). */
+  readonly items: readonly ItemId[];
   readonly ending: EndingId | null;
 }

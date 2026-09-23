@@ -11,6 +11,7 @@ import {
   US_SPAWN_POSITIONS,
 } from './battlefield';
 import {
+  BLOCK_TERRAIN,
   CANADA_BATTLEGROUND,
   getBattleground,
   gridFromTerrain,
@@ -180,6 +181,56 @@ describe('gridFromTerrain', () => {
       const cell = gridFromTerrain([[kind]])[0]?.[0];
       expect(['floor', 'wall']).toContain(cell);
     }
+  });
+});
+
+// River-border (shoreGrass/shoreRock) and waterfall (waterfallColumns/waterfallWide/
+// waterfallTall) kinds — added for a real user request, with 5 supplied reference tile
+// images: "Are you able import those tiles to allow me to generate the river border +
+// waterfall?"
+describe('river-border and waterfall terrain kinds', () => {
+  it('includes all 5 new kinds in TERRAIN_KINDS', () => {
+    for (const kind of [
+      'shoreGrass',
+      'shoreRock',
+      'waterfallColumns',
+      'waterfallWide',
+      'waterfallTall',
+    ]) {
+      expect(TERRAIN_KINDS.has(kind as never)).toBe(true);
+    }
+  });
+
+  it('shoreGrass is walkable, same as plain grass', () => {
+    expect(WALKABLE_TERRAIN.has('shoreGrass')).toBe(true);
+  });
+
+  it('shoreRock is not walkable — rocky boulders meeting water, not solid ground', () => {
+    expect(WALKABLE_TERRAIN.has('shoreRock')).toBe(false);
+  });
+
+  it('none of the three waterfall kinds are walkable', () => {
+    expect(WALKABLE_TERRAIN.has('waterfallColumns')).toBe(false);
+    expect(WALKABLE_TERRAIN.has('waterfallWide')).toBe(false);
+    expect(WALKABLE_TERRAIN.has('waterfallTall')).toBe(false);
+  });
+
+  it('BLOCK_TERRAIN is cliff plus the three waterfall kinds, and nothing else', () => {
+    expect(BLOCK_TERRAIN.has('cliff')).toBe(true);
+    expect(BLOCK_TERRAIN.has('waterfallColumns')).toBe(true);
+    expect(BLOCK_TERRAIN.has('waterfallWide')).toBe(true);
+    expect(BLOCK_TERRAIN.has('waterfallTall')).toBe(true);
+    for (const kind of TERRAIN_KINDS) {
+      if (['cliff', 'waterfallColumns', 'waterfallWide', 'waterfallTall'].includes(kind)) {
+        continue;
+      }
+      expect(BLOCK_TERRAIN.has(kind)).toBe(false);
+    }
+  });
+
+  it('shoreGrass/shoreRock are flat, not block-shaped — a shoreline texture, not an obstacle', () => {
+    expect(BLOCK_TERRAIN.has('shoreGrass')).toBe(false);
+    expect(BLOCK_TERRAIN.has('shoreRock')).toBe(false);
   });
 });
 

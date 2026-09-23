@@ -45,7 +45,7 @@ file's own actual size — there's no fixed 20×14 anymore, see
 
 The Width/Height fields plus **Resize map** button (top of the page) let you change the
 map's actual dimensions — this is what `GRID_W`/`GRID_H` used to be a fixed constant for
-(user request: *"I also want to edit the GRID_W and GRID_H"*). Type a new width and/or
+(user request: _"I also want to edit the GRID_W and GRID_H"_). Type a new width and/or
 height (3–60) and click **Resize map**:
 
 - Existing content in the overlapping top-left region is kept as-is.
@@ -73,13 +73,15 @@ size, so changing it rebuilds the whole grid.
 ## Editing
 
 The grid renders isometrically — the same 2:1 dimetric projection as the real battle
-camera (`src/ui/room/isometric.ts`), not a flat top-down view (real user feedback: *"I
-cannot pan to the map's corner. Maybe the map editor should be isometric too."*). A flat
+camera (`src/ui/room/isometric.ts`), not a flat top-down view (real user feedback: _"I
+cannot pan to the map's corner. Maybe the map editor should be isometric too."_). A flat
 grid made it easy to place a spawn or wall two rows away from where it actually reads as
 "close" once the real camera projects it; this way what you see while editing is what
 you'll see in-game. A `wall` cell renders as a real 3-face extruded block (same as the
-game) unless it has a non-`cliff` terrain painted on it (water, grass, etc.), in which case
-it's a flat, impassable, textured diamond — exactly the game's own render rule.
+game) if it has no terrain painted, or a `BLOCK_TERRAIN` kind (`cliff`, or one of the
+three waterfall kinds); any other terrain (water, grass, a shoreline texture, etc.)
+renders it as a flat, impassable, textured diamond instead — exactly the game's own
+render rule.
 
 Panning is plain native browser scrolling (scrollbars, trackpad, mouse wheel, or — once
 you click the map to focus it — arrow keys/Page Up/Down/Home/End), not a custom camera. A
@@ -91,25 +93,38 @@ Pick a layer on the left, pick a tool, then click or click-and-drag across the g
 
 - **Grid** — paint `floor` / `wall` / `object` / `door`. This is the layer that affects
   actual gameplay (movement and attack range) — **but only for a country with the terrain
-  layer disabled.** Once terrain is enabled (see below), walkability is *derived* from
+  layer disabled.** Once terrain is enabled (see below), walkability is _derived_ from
   terrain automatically and this layer becomes read-only (its swatches disappear; the
   panel explains why). This mirrors the real game's loader exactly: whenever a
   battleground has a terrain grid at all, its `grid` is computed from terrain, never
-  hand-typed independently (real user feedback: *"The terrain map should be based on the
-  selected background tile. You can walk on grass, rocky ground and stonePath."*).
+  hand-typed independently (real user feedback: _"The terrain map should be based on the
+  selected background tile. You can walk on grass, rocky ground and stonePath."_).
 - **Terrain** — tick "Enable terrain layer" to paint real textures (grass/rocky
-  ground/stone path/water/cliff); leave it off and the country renders as plain colored
-  tiles and hand-painted `grid` values, exactly like before this system existed.
+  ground/stone path/water/cliff/shore grass/shore rock/three waterfall designs); leave it
+  off and the country renders as plain colored tiles and hand-painted `grid` values,
+  exactly like before this system existed. The shoreline and waterfall kinds were added
+  for a real user request, with 5 supplied reference tile images: _"Are you able import
+  those tiles to allow me to generate the river border + waterfall?"_ — the three
+  waterfall kinds render as a tall block, same as cliff, since a waterfall is a vertical
+  drop, not a flat patch (their block top face reuses the plain `water` texture; only
+  their side faces use each waterfall's own art).
   **Once enabled, every terrain paint also recomputes that cell's `grid` value**: grass,
-  rocky ground, and stone path become `floor`; water and cliff become `wall`. Toggling the
-  checkbox back on after painting always re-derives the *entire* grid from the current
-  terrain, discarding any stale hand-painted grid values. Unticking doesn't erase your
-  painted terrain — it's just excluded from the exported file (and grid reverts to
-  hand-paintable) until you re-enable it.
+  rocky ground, stone path, and shore grass become `floor`; water, cliff, shore rock, and
+  all three waterfall kinds become `wall`. Toggling the checkbox back on after painting
+  always re-derives the _entire_ grid from the current terrain, discarding any stale
+  hand-painted grid values. Unticking doesn't erase your painted terrain — it's just
+  excluded from the exported file (and grid reverts to hand-paintable) until you
+  re-enable it.
 - **Props** — click a prop thumbnail (or "Eraser"), then click cells to place/remove
-  decorations. Props never block movement by themselves — paint the same cell as `wall`
-  on the Grid layer (terrain disabled) or as water/cliff on the Terrain layer (terrain
-  enabled) if you want it to actually stop units.
+  decorations. **Placing a prop marks that cell `object` on the Grid layer by default**
+  (real user feedback: _"The props in map editor should mark the grid as object by
+  default"_) — a building/tree/fence blocks movement the moment you place it, no second
+  trip to the Grid layer needed. This only happens while terrain is disabled — with
+  terrain enabled, `grid` is fully derived from the Terrain layer instead (see above), so
+  paint the cell as water/cliff there if you want the prop to actually stop units. Erasing
+  a prop deliberately leaves the grid cell's value alone (there's no way to tell an
+  auto-set `object` apart from a hand-painted wall/object a prop happened to land on), so
+  clear it yourself on the Grid layer if you want that spot walkable again.
 - **US spawns** / **Enemy spawns** — click a cell to add or remove a starting position
   for that side. The number on each marker is spawn order (spawn 1 goes to the first
   unit, spawn 2 to the second, and so on).

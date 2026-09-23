@@ -1,0 +1,349 @@
+/* Opening cutscene (`ui/screens/IntroScreen.tsx`): plays once at the start of every new
+ * game, skippable. Same "full-bleed screen between the HUD and ticker" shape every other
+ * top-level `Screen` already uses (`.game-screen`/`.ending-screen`/`.title-screen`), so
+ * it slots into `App.tsx`'s `CurrentScreen` switch with no special-casing there. */
+
+.intro-screen {
+  position: absolute;
+  inset: var(--hud-height) 0 var(--ticker-height) 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--navy-dark);
+  padding: 4px;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.intro-skip-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 5;
+  padding: 2px 6px;
+}
+
+/* --- Dialogue beat: Trump walks in, the two trade lines, the can drops --- */
+
+.intro-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--navy) 0%,
+    var(--navy) 62%,
+    var(--navy-light) 62%,
+    var(--navy-light) 100%
+  );
+  border: 1px solid var(--gold-dim);
+  overflow: hidden;
+}
+
+.intro-actor {
+  position: absolute;
+  bottom: 10px;
+  width: 30px;
+  height: 72px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transform: translateX(-50%);
+}
+
+.intro-actor-trump {
+  left: 40%;
+}
+
+/* The walk-in itself — see `IntroScreen.tsx`'s `TRUMP_WALK_MS` doc comment for why this
+ * duration is hand-kept in sync with that constant. `forwards` holds the animation's end
+ * value (also `left: 40%`, matching the resting rule above) so there's no visible jump
+ * the instant the component swaps this class off in favor of the resting pose. */
+.intro-actor-trump.is-walking {
+  left: 4%;
+  animation: intro-trump-walk-in 1100ms ease-out forwards;
+}
+
+@keyframes intro-trump-walk-in {
+  from {
+    left: 4%;
+  }
+  to {
+    left: 40%;
+  }
+}
+
+.intro-actor-vance {
+  left: 62%;
+}
+
+.intro-can-drop {
+  position: absolute;
+  left: 48%;
+  bottom: 6px;
+  width: 16px;
+  height: 19px;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  animation: intro-can-fall 500ms ease-in;
+}
+
+@keyframes intro-can-fall {
+  from {
+    transform: translate(-50%, -90px);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+
+.intro-dialogue-box {
+  position: relative;
+  flex: none;
+  min-height: 52px;
+  background: var(--navy-dark);
+  border: 2px solid var(--gold-dim);
+  padding: 6px 26px 6px 8px;
+  color: var(--cream);
+  text-align: left;
+  cursor: pointer;
+}
+
+.intro-dialogue-speaker {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--gold);
+}
+
+.intro-dialogue-text {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.intro-dialogue-text.is-narration {
+  color: var(--cream);
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.intro-dialogue-continue {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  color: var(--gold);
+  animation: intro-continue-bob 900ms ease-in-out infinite;
+}
+
+@keyframes intro-continue-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+/* --- Zoom-on-the-can beat, then Carney's reveal --- */
+
+.intro-zoom {
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.intro-zoom-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.intro-zoom-can {
+  max-width: 220px;
+  max-height: 130px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgb(0 0 0 / 50%));
+  animation: intro-zoom-in 900ms ease-out;
+}
+
+@keyframes intro-zoom-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.intro-zoom-caption {
+  margin: 0;
+  color: var(--cream);
+}
+
+/* --- Trump's thought-bubble beat (real user feedback, two rounds: first, swap the old
+ * flat "Carney speech bubble" card — his own portrait plus his own line, as if he'd
+ * spoken it — for a comic thought-bubble over *Trump's* head holding only Carney's
+ * portrait, no text; second, "move the meat can to the right and then make Trump appear
+ * with the bubble to the left" — the can no longer leaves the stage once this beat
+ * starts, it just moves aside, and there's no caption text under the bubble at all now.
+ * Trump (with his bubble) sits on the left half of `.intro-think-stage`, the can on the
+ * right half — see `.intro-think-can` below. This split layout is also what keeps the
+ * "Attack Canada" button from getting cropped under the ticker (an earlier real bug):
+ * the old layout stacked the can zoom + this reveal + the button all at once, tall enough
+ * to overflow the screen's ~230px content budget between the HUD and ticker insets;
+ * putting the can and Trump side by side, instead of stacked, keeps this beat's own
+ * height no taller than Trump's sprite plus his bubble. Round 3 ("Carney should face
+ * the can and put them closer together") nudged Trump/the cloud/dots rightward and the
+ * can leftward so the whole group reads as one compact scene rather than two things at
+ * opposite edges of the stage — see `.intro-think-can`'s own comment for the exact
+ * numbers — and `IntroScreen.tsx` now renders Carney's `sprite.right` pose in the cloud
+ * instead of `sprite.front`, so he's visually turned toward the can. */
+
+.intro-think {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.intro-think-stage {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: 120px;
+}
+
+.intro-think-trump {
+  position: absolute;
+  left: 30%;
+  bottom: 0;
+  width: 30px;
+  height: 72px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transform: translateX(-50%);
+}
+
+.intro-think-bubble {
+  position: absolute;
+  inset: 0;
+}
+
+/* The cloud, and the two trailing dots below, form the classic comic "thinking of
+ * something" trail — a diagonal line of shrinking circles from Trump's head (bottom-left
+ * of this stage) up to the cloud (top-left-of-center) holding what he's thinking about. */
+.intro-think-cloud {
+  position: absolute;
+  top: 4px;
+  left: 46%;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 2px solid var(--navy-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: intro-think-pop 300ms ease-out;
+}
+
+.intro-think-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 1px solid var(--navy-dark);
+  animation: intro-think-pop 300ms ease-out;
+}
+
+.intro-think-dot-1 {
+  top: 46px;
+  left: 41%;
+  width: 11px;
+  height: 11px;
+}
+
+.intro-think-dot-2 {
+  top: 60px;
+  left: 36%;
+  width: 6px;
+  height: 6px;
+}
+
+@keyframes intro-think-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* A real supplied photo (user request: "You can put this picture in the bubble. Crop it
+ * with CSS so it fits in the bubble.") — fills the whole cloud circle and lets
+ * `.intro-think-cloud`'s own `overflow: hidden` + `border-radius: 50%` do the actual
+ * cropping into a circle, same as any avatar-in-a-circle pattern. `object-fit: cover`
+ * (not `contain`, unlike the old pixel-sprite version) scales the photo up to fully
+ * cover the circle rather than leaving letterboxed gaps; `object-position` is nudged up
+ * from center since the source photo is a head-and-shoulders portrait with his face in
+ * the upper half — centering on the vertical midpoint would crop into his chin instead
+ * of showing his whole face. Not `image-rendering: pixelated` — this is a real
+ * photograph, not pixel art, unlike everything else in this scene. */
+.intro-carney-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 25%;
+}
+
+/* The can, moved aside to the right rather than off the stage entirely (real user
+ * feedback, round 2) — same drop-shadow/pop-in treatment as `.intro-zoom-can`, just
+ * smaller and pinned to this stage's right half so it sits comfortably beside Trump and
+ * his bubble on the left instead of competing with them for the same center ground. */
+.intro-think-can {
+  position: absolute;
+  /* Round 3 feedback ("put them closer together"): pulled in from 6% to sit right up
+   * against the thought-bubble group instead of clear across the stage from it. */
+  right: 22%;
+  bottom: 4px;
+  max-width: 110px;
+  max-height: 84px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgb(0 0 0 / 50%));
+  animation: intro-zoom-in 900ms ease-out;
+}
+
+.intro-attack-button {
+  margin-top: 4px;
+  /* A little clearance off the very bottom edge (real user feedback: the button read as
+   * cropped against the ticker) — on top of the height fix above, not instead of it. */
+  margin-bottom: 6px;
+}
+
+/* --- The battle itself and its result banner --- */
+
+.intro-battle-wrap {
+  padding: 0;
+}
+
+.intro-result {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.intro-result-text {
+  max-width: 380px;
+  color: var(--cream);
+  line-height: 1.6;
+}

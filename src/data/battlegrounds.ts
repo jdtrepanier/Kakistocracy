@@ -90,10 +90,25 @@ import venezuelaData from './battlegrounds/venezuela.json';
  * loader to accept.
  */
 
-/** What texture paints a cell. Only `'cliff'` changes how the tile is *shaped* — it's
- * the one kind still rendered as a tall extruded `IsoBlock` (the classic obstacle look);
- * every other kind renders as a flat textured diamond, since a river or a grassy
- * tree-stump patch shouldn't stand up off the field the way a rock face does.
+/** What texture paints a cell. Most kinds render as a flat textured diamond; `BLOCK_TERRAIN`
+ * below is the exception — those still render as a tall extruded `IsoBlock`, since a rock
+ * face or a waterfall genuinely should stand up off the field the way a river or a grassy
+ * tree-stump patch shouldn't.
+ *
+ * `shoreGrass`/`shoreRock` (river-border shoreline textures) and `waterfallColumns`/
+ * `waterfallWide`/`waterfallTall` (three waterfall designs) were added for the user's own
+ * request, with 5 supplied reference tile images: "Are you able import those tiles to
+ * allow me to generate the river border + waterfall?" The 3 waterfall kinds are block-shaped
+ * (see `BLOCK_TERRAIN`) — a waterfall is a vertical drop, not a flat patch — reusing the
+ * existing `water.png` for their top face (the flowing river surface at the head of the
+ * falls) and each getting its own image for the side faces (the actual cascade). The
+ * source images were a different visual convention than this project's existing flat,
+ * seamless terrain textures (hex-icon-style renders with a transparent hex mask, ~35-46%
+ * transparent corners, vs. the existing fully-opaque 256x256 crops) — cropped tight to
+ * each image's own opaque content and the remaining semi-transparent edge composited onto
+ * the average interior color (flattened to RGB, matching the existing asset convention)
+ * rather than left transparent, accepting some `background-size: cover` cropping given how
+ * small the actual on-screen tile render is (a `.iso-diamond` is only 32x16 CSS px).
  *
  * **Also what determines walkability, whenever a battleground has a `terrain` grid at
  * all** (user request: "The terrain map should be based on the selected background
@@ -104,16 +119,43 @@ import venezuelaData from './battlegrounds/venezuela.json';
  * (the "cannot move the player" battle crash earlier this session) trace back to exactly
  * that: spawn tiles whose `grid` cell said `wall` even though they were textured as
  * ordinary walkable ground. Deriving one from the other removes that whole class of bug. */
-export type TerrainKind = 'grass' | 'rockyGround' | 'stonePath' | 'water' | 'cliff';
+export type TerrainKind =
+  | 'grass'
+  | 'rockyGround'
+  | 'stonePath'
+  | 'water'
+  | 'cliff'
+  | 'shoreGrass'
+  | 'shoreRock'
+  | 'waterfallColumns'
+  | 'waterfallWide'
+  | 'waterfallTall';
 
 export type TerrainGrid = readonly (readonly TerrainKind[])[];
 
-/** The `TerrainKind`s a unit can stand on — everything else (`water`, `cliff`) blocks
- * movement. See `TerrainKind`'s own doc comment and `gridFromTerrain` below. */
+/** The `TerrainKind`s that render as a tall extruded `IsoBlock` instead of a flat
+ * textured diamond — a real obstacle (a rock face, a waterfall) that should stand up off
+ * the field, not just texture it. Every other kind (including `shoreGrass`/`shoreRock`,
+ * which are flat shoreline textures, not obstacles) renders flat. Exported so
+ * `ui/battle/BattleView.tsx`'s block-vs-flat rendering check doesn't have to hardcode
+ * `=== 'cliff'` — see that file's own `BattleTile` doc comment. */
+export const BLOCK_TERRAIN: ReadonlySet<TerrainKind> = new Set<TerrainKind>([
+  'cliff',
+  'waterfallColumns',
+  'waterfallWide',
+  'waterfallTall',
+]);
+
+/** The `TerrainKind`s a unit can stand on — everything else (`water`, `cliff`, the
+ * waterfalls, and `shoreRock`) blocks movement. `shoreRock` stays non-walkable
+ * deliberately — it's rocky boulders meeting open water, not solid ground — while
+ * `shoreGrass` (the grass side of the same shoreline) is walkable, same as plain
+ * `grass`. See `TerrainKind`'s own doc comment and `gridFromTerrain` below. */
 export const WALKABLE_TERRAIN: ReadonlySet<TerrainKind> = new Set<TerrainKind>([
   'grass',
   'rockyGround',
   'stonePath',
+  'shoreGrass',
 ]);
 
 /** Derives a walkable `grid` straight from a `terrain` grid: `WALKABLE_TERRAIN` kinds
@@ -168,6 +210,11 @@ export const TERRAIN_KINDS: ReadonlySet<TerrainKind> = new Set<TerrainKind>([
   'stonePath',
   'water',
   'cliff',
+  'shoreGrass',
+  'shoreRock',
+  'waterfallColumns',
+  'waterfallWide',
+  'waterfallTall',
 ]);
 
 /** Validates and narrows a hand-edited JSON grid (`battlegrounds/*.json`'s `"grid"` or

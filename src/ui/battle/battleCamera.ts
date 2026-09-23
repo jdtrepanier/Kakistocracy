@@ -53,25 +53,45 @@ export function panCamera(camera: CameraOffset, dx: number, dy: number): CameraO
  * space beyond its own edge — unless the grid is smaller than the viewport on this
  * axis (a narrow window, or in principle a small battlefield), in which case there's
  * nothing to scroll and the grid is centered in the viewport instead of clamped to a
- * range (a min/max clamp would have min > max in that case). */
-function clampAxis(value: number, gridExtent: number, viewportExtent: number): number {
-  if (gridExtent <= viewportExtent) return (viewportExtent - gridExtent) / 2;
-  const min = viewportExtent - gridExtent; // grid's far edge lands on the viewport's far edge
-  const max = 0; // grid's near edge can't be pushed past the viewport's own near edge
+ * range (a min/max clamp would have min > max in that case). `padding` (default 0)
+ * loosens both ends of that clamp by a fixed amount, letting the grid scroll that much
+ * further past "flush with the edge" — see `clampCamera`'s own doc comment for why. */
+function clampAxis(value: number, gridExtent: number, viewportExtent: number, padding = 0): number {
+  if (gridExtent <= viewportExtent) {
+    const center = (viewportExtent - gridExtent) / 2;
+    return Math.min(center + padding, Math.max(center - padding, value));
+  }
+  const min = viewportExtent - gridExtent - padding; // grid's far edge can go padding px past the viewport's far edge
+  const max = padding; // grid's near edge can go padding px past the viewport's own near edge
   return Math.min(max, Math.max(min, value));
 }
 
 /** Clamps a camera offset to `gridSize` within `viewportSize`, axis by axis. Every
- * camera update in `useBattleCamera` (the recenter-on-new-turn effect, and `pan`) goes
- * through this, so the map can never scroll past its own edges no matter how the
- * offset got there. */
+ * camera update in `useBattleCamera` (the recenter-on-new-turn effect, `pan`, and a
+ * zoom-at-a-point) goes through this, so the map can never scroll past its own edges no
+ * matter how the offset got there.
+ *
+ * `horizontalPadding` (default 0, x-axis only) loosens the clamp so the grid can scroll
+ * a bit further than "flush with the edge" — real user feedback: "We should be able to
+ * pan the isometric map more to the left and right because the player health is hidden
+ * [in] the left and right corner." `BattleView.tsx`'s roster panels (`.battle-roster-us`/
+ * `.battle-roster-enemy`, `battle.css`) are fixed-width overlays pinned to the viewport's
+ * own left/right edges, covering that strip of the map *regardless of camera position* —
+ * without extra padding, a unit sitting right at the map's own left or right edge is
+ * permanently hidden under the panel, since the strict clamp above stops the camera the
+ * instant the grid's edge is flush with the viewport's edge (there's no further to pan).
+ * Padding lets the camera go that little bit further, revealing blank space past the
+ * grid's true edge in exchange for being able to scroll a previously-hidden unit clear
+ * of the panel. No such issue on the y-axis (the panels don't cover the top/bottom
+ * edges), hence this only loosens x. */
 export function clampCamera(
   camera: CameraOffset,
   gridSize: CameraSize,
   viewportSize: CameraSize,
+  horizontalPadding = 0,
 ): CameraOffset {
   return {
-    x: clampAxis(camera.x, gridSize.width, viewportSize.width),
+    x: clampAxis(camera.x, gridSize.width, viewportSize.width, horizontalPadding),
     y: clampAxis(camera.y, gridSize.height, viewportSize.height),
   };
 }

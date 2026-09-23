@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store/gameStore';
 import { playSfx } from '../audio/sfx';
 import { CrossMenu } from '../menus/CrossMenu';
+import { ItemOverlay } from '../menus/ItemOverlay';
 import { StubOverlay } from '../menus/StubOverlay';
 import { OfficialWindow } from '../room/OfficialWindow';
 import { RoomView } from '../room/RoomView';
@@ -83,7 +84,7 @@ export function GameScreen() {
       {overlay === 'actions' && <ActionsOverlay />}
       {overlay === 'map' && <MapScreen />}
       {overlay === 'talk' && <StubOverlay titleKey="menu.talk" bodyKey="menu.talk.stub" />}
-      {overlay === 'item' && <StubOverlay titleKey="menu.item" bodyKey="menu.item.stub" />}
+      {overlay === 'item' && <ItemOverlay />}
       <ResolutionOverlay />
     </main>
   );

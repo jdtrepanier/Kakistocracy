@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { getCharacter, spriteForDirection } from '@/data/characters';
-import { getRoomLayout } from '@/data/roomLayouts';
+import { facingItem, getRoomLayout } from '@/data/roomLayouts';
 import { step, tileAt, type Direction, type GridPosition, type TileKind } from '@/engine/movement';
 import { useGameStore } from '@/store/gameStore';
 import { useT } from '../useT';
@@ -64,6 +64,27 @@ function renderCell(tile: TileKind, pos: GridPosition, point: IsoPoint): ReactNo
     ];
   }
 
+  // A grabbable item's pedestal — same extruded-block shape as a DECREE object, just a
+  // distinct gold-toned `iso-item` face (`room.css`) so it reads as "something you can
+  // pick up" rather than "something you interact with in place." Stays exactly like this
+  // even once collected (see `TileKind`'s own doc comment: it's real furniture, not the
+  // item floating on its own) — only the ITEM-button hint and pickup logic (`RoomView`'s
+  // own `showItemHint` below, `CrossMenu.tsx`) change based on collected state.
+  if (tile === 'item') {
+    return [
+      <IsoDiamond key={`${key}-floor`} point={point} depth={depth} className="iso-floor" />,
+      <IsoBlock
+        key={`${key}-item`}
+        point={point}
+        depth={depth}
+        height={ISO_OBJECT_HEIGHT}
+        faces={CUBE_FACES_OBJECT}
+        className="iso-item"
+        zBoost={1}
+      />,
+    ];
+  }
+
   const className = tile === 'door' ? 'iso-door' : 'iso-floor';
   return [<IsoDiamond key={key} point={point} depth={depth} className={className} />];
 }
@@ -102,6 +123,7 @@ export function RoomView() {
   const player = useGameStore((s) => s.player);
   const activeCharacter = useGameStore((s) => s.activeCharacter);
   const movePlayer = useGameStore((s) => s.movePlayer);
+  const items = useGameStore((s) => s.game.items);
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useElementSize(viewportRef);
 
@@ -120,6 +142,12 @@ export function RoomView() {
   const character = getCharacter(activeCharacter);
   const facingTile = tileAt(layout.grid, step(player.pos, player.facing));
   const facingObject = facingTile === 'object';
+  const facingItemId = facingItem(player.roomId, player.pos, player.facing);
+  // Still shows the "press ITEM" hint even once collected — same "the pedestal is real
+  // furniture, whether or not its item's been taken" spirit as `TileKind`'s own doc
+  // comment — but only if there's actually still something to grab; an already-collected
+  // item's hint would just be confusing ("press ITEM" for nothing to happen).
+  const showItemHint = facingItemId !== undefined && !items.includes(facingItemId);
 
   const bounds = isoGridBounds(layout.grid);
   const playerPoint = projectIsoWithin(player.pos, bounds);
@@ -171,6 +199,7 @@ export function RoomView() {
         />
       </div>
       {facingObject && <div className="room-hint">{t('room.hint.object')}</div>}
+      {showItemHint && <div className="room-hint">{t('room.hint.item')}</div>}
     </div>
   );
 }

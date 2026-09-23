@@ -25,6 +25,7 @@ export function createInitialState(seed: number, balance: Balance = BALANCE): Ga
     lowHappinessStreak: 0,
     elonRage: 0,
     oilPriceIndex: 0,
+    items: [],
     ending: null,
   };
 }

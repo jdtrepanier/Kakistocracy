@@ -10,6 +10,24 @@ export const fr: Messages = {
   'game.buildInfo': 'PHASE 4 · TRANCHE VERTICALE',
   'game.cabinet': 'Le cabinet',
 
+  'intro.line1': "Hé, J.D., c'est mieux si l'inflation monte ou si elle descend ?",
+  'intro.line2': 'Inflate veut dire que plus gros, c’est mieux !',
+  'intro.line3': "Alors attaquons l'Inde.",
+  'intro.line4': "Ma femme vient d'Inde.",
+  'intro.line5': 'Qui pourrions-nous attaquer, alors ?',
+  'intro.canFalls': 'Une boîte de conserve tombe par terre, venue de nulle part en particulier.',
+  'intro.pickUp': 'Une « boîte de viande » ! Obtenue.',
+  'intro.itemObtained': 'Obtenu : boîte de viande',
+  'intro.zoomCaption': "Ça a l'air étranger. C'est sûrement la faute du Canada.",
+  'intro.skip': 'Passer',
+  'intro.skip.label': "Passer la cinématique d'ouverture",
+  'intro.continuePrompt': 'Cliquez, ou appuyez sur Entrée/Espace, pour continuer',
+  'intro.beginBattle': 'Attaquer le Canada',
+  'intro.beginTerm': 'Commencer le mandat',
+  'intro.battleWin': 'Une victoire retentissante et totalement sans conséquence sur le Canada.',
+  'intro.battleLose':
+    "Une défaite retentissante et totalement sans conséquence. Les réserves de sirop d'érable du Canada sont sauves — pour l'instant.",
+
   'hud.label': 'État de la nation',
   'hud.date': 'DATE',
   'hud.debt': 'DETTE',
@@ -42,6 +60,7 @@ export const fr: Messages = {
   'room.window.label': 'Pièce actuelle',
   'room.viewport.label': 'Pièce — flèches ou WASD pour se déplacer',
   'room.hint.object': 'Appuyez sur DÉCRET pour agir ici',
+  'room.hint.item': 'Appuyez sur OBJET pour le ramasser',
 
   'room.dpad.label': 'Déplacer',
   'room.dpad.up': 'Aller vers le haut',
@@ -55,8 +74,13 @@ export const fr: Messages = {
   'menu.talk.stub':
     "Personne n'a envie de discuter pour l'instant — les dialogues arrivent plus tard.",
   'menu.item': 'OBJET',
-  'menu.item.stub': "Pas encore d'objets — l'inventaire arrive plus tard.",
   'menu.switch': 'CHANGER',
+
+  'item.empty': "Les poches sont vides. Rien n'a encore été ramassé.",
+  'item.canOfMeat.name': 'Conserve de viande mystère',
+  'item.canOfMeat.description': 'Étrangère. Sûrement la faute du Canada.',
+  'item.autopen.name': 'Autopen',
+  'item.autopen.description': 'Signe votre nom à votre place. Très impliqué.',
 
   'toolbar.actions': 'Décrets présidentiels',
   'toolbar.map': 'Carte du monde',

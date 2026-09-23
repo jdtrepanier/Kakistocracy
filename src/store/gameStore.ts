@@ -31,14 +31,19 @@ import type {
   CountryId,
   GameDate,
   GameState,
+  ItemId,
   LandmarkId,
   NationStats,
 } from '@/engine/types';
 import type { MessageKey } from '@/i18n/en';
 import { LANGS, type Lang } from '@/i18n/translate';
 
-/** Which full-screen view is showing. Transient UI flow, not part of the engine's GameState. */
-export type Screen = 'title' | 'game' | 'monthReport' | 'ending';
+/** Which full-screen view is showing. Transient UI flow, not part of the engine's GameState.
+ * `'intro'` is the opening cutscene (Trump/Vance's Oval Office bit ending in a free,
+ * no-stat-effect skirmish against Canada) — `newGame` routes here instead of straight to
+ * `'game'`; `IntroScreen.tsx` is the only thing that ever leaves it, either by finishing
+ * the cutscene or via its Skip button, both through `finishIntro`. */
+export type Screen = 'title' | 'game' | 'monthReport' | 'ending' | 'intro';
 
 /**
  * Phase 2 room slice (GAME_PLAN §11): which cross-menu panel, if any, is open over the
@@ -108,6 +113,23 @@ export interface ResolutionState {
   readonly nextGame?: GameState;
 }
 
+/**
+ * The opening cutscene's own battle-in-progress (`IntroScreen.tsx`), once the player
+ * reaches its final beat. Deliberately a *separate* slice from `ResolutionState.battle`
+ * rather than reusing the real declare-war flow: the whole point of this fight (per the
+ * user's own "free — no stat effect either way" answer) is that it never touches
+ * `resolveBattleAction`, `game.atWarWith`, or any stat — win or lose, Month 1 starts
+ * completely fresh straight after it. `finishIntro` is the only thing that ever clears
+ * this back to `null`.
+ */
+export interface IntroBattleState {
+  readonly battle: BattleState;
+  /** Set once `checkOutcome` stops returning `'ongoing'` — `undefined` while the fight is
+   * still on. Nothing reads `game`/applies a stat delta when this is set; it only picks
+   * which flavor banner `IntroScreen.tsx` shows before `finishIntro`. */
+  readonly outcome?: 'usWin' | 'enemyWin';
+}
+
 export type MonthReportEntry = ActionResult;
 
 /** A snapshot of one finished month, for the month-end report screen. */
@@ -175,6 +197,11 @@ export interface GameStore {
    * it, rather than re-read from storage on every render. */
   hasSave: boolean;
 
+  /** The opening cutscene's own battle, once `IntroScreen.tsx` starts it — `null` before
+   * that point and after the cutscene finishes. See `IntroBattleState`'s doc comment for
+   * why this is its own slice rather than reusing `resolution.battle`. */
+  introBattle: IntroBattleState | null;
+
   newGame: (seed?: number) => void;
   /** Sets the difficulty for the *next* `newGame` (title-screen selector, before a run
    * starts) — see `difficulty`'s doc comment. */
@@ -191,6 +218,11 @@ export interface GameStore {
   toggleLang: () => void;
   movePlayer: (dir: Direction) => void;
   switchCharacter: () => void;
+  /** Adds `itemId` to `game.items`, once — a no-op if it's already there (walking back
+   * up to an already-collected pedestal, or the intro cutscene's `useEffect` firing more
+   * than once, should never duplicate an entry). See `data/items.ts`'s own doc comment
+   * for what the two current items are and where each is picked up. */
+  grabItem: (itemId: ItemId) => void;
   openOverlay: (id: OverlayId) => void;
   closeOverlay: () => void;
   /** Starts resolving `actionId`: into its showdown if it has one, else straight to preview. */
@@ -229,6 +261,27 @@ export interface GameStore {
    * action (rather than folded silently into the moments that call it) so any future
    * juice — a bad random event, an ending reveal — can reuse the exact same trigger. */
   triggerShake: () => void;
+
+  /** Builds and starts the opening cutscene's Canada battle (`IntroScreen.tsx`'s final
+   * beat) — same battleground/roster lookup `selectBattleCountry` uses for a real
+   * declare-war, just always against `'canada'` and landing in `introBattle` instead of
+   * `resolution`. */
+  introStartBattle: () => void;
+  /** Moves the current intro-battle unit, if it's a living US unit and the tile is
+   * reachable — mirrors `battleMove` exactly, just against `introBattle`. */
+  introBattleMove: (pos: GridPosition) => void;
+  /** The current intro-battle US unit attacks `targetId` — mirrors `battleAttack`. */
+  introBattleAttack: (targetId: string) => void;
+  /** The current intro-battle US unit ends its turn without attacking. */
+  introBattleEndTurn: () => void;
+  /** Plays out one intro-battle enemy unit's turn. */
+  introBattleRunEnemyTurn: () => void;
+  /** Ends the opening cutscene — from its own "the term begins" continue button once the
+   * battle resolves, or from its Skip button at any earlier beat (GAME_PLAN: "every new
+   * game, skippable"). Either way this is the *only* thing that clears `introBattle` and
+   * leaves `screen: 'intro'` — Month 1 starts exactly as `newGame` already built it,
+   * since nothing in the cutscene ever touched `game`. */
+  finishIntro: () => void;
 }
 
 const LANG_STORAGE_KEY = 'maga.lang';
@@ -429,6 +482,16 @@ function settleBattle(
   return { resolution: { ...resolution, phase: 'result', battle, result, nextGame: state } };
 }
 
+/** The opening cutscene's equivalent of `settleBattle` above — much simpler, since it
+ * never has a `resolveBattleAction`/stat-effect branch to fall into: an intro battle
+ * either keeps going (`'ongoing'`) or is done, full stop, with the outcome kept only for
+ * which flavor banner `IntroScreen.tsx` shows before `finishIntro` moves on to Month 1. */
+function settleIntroBattle(battle: BattleState): Pick<GameStore, 'introBattle'> {
+  const outcome = checkOutcome(battle);
+  if (outcome === 'ongoing') return { introBattle: { battle } };
+  return { introBattle: { battle, outcome } };
+}
+
 export const useGameStore = create<GameStore>()((set, get) => ({
   ...freshGame(randomSeed()),
   lang: initialLang(),
@@ -437,12 +500,17 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   lastEventNameKey: null,
   hasSave: hasSavedGame(),
   shakeSeq: 0,
+  introBattle: null,
 
   newGame: (seed = randomSeed()) => {
     clearSavedGame();
     set({
       ...freshGame(seed, get().difficulty),
-      screen: 'game',
+      // Every new game opens with the cutscene (GAME_PLAN: "every new game, skippable")
+      // rather than landing straight in the room — `IntroScreen.tsx`'s Skip button (or
+      // finishing the cutscene normally) is what actually moves on to `'game'`.
+      screen: 'intro',
+      introBattle: null,
       monthReport: null,
       lastEventNameKey: null,
       hasSave: false,
@@ -457,9 +525,14 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const saved = loadSavedGame();
     if (!saved) return;
     set({
-      // Older saves (pre–oil-price) won't have this field — fall back rather than let
-      // every economy formula that reads it silently compute with `undefined`.
-      game: { ...saved.game, oilPriceIndex: saved.game.oilPriceIndex ?? 0 },
+      // Older saves (pre–oil-price, pre-items) won't have these fields — fall back rather
+      // than let every economy formula (or the ITEM overlay's `.map`) silently compute
+      // with `undefined`.
+      game: {
+        ...saved.game,
+        oilPriceIndex: saved.game.oilPriceIndex ?? 0,
+        items: saved.game.items ?? [],
+      },
       monthStartStats: saved.monthStartStats,
       monthLog: saved.monthLog,
       player: saved.player,
@@ -601,6 +674,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const index = SWITCHABLE_CHARACTERS.indexOf(activeCharacter);
     const next = SWITCHABLE_CHARACTERS[(index + 1) % SWITCHABLE_CHARACTERS.length];
     if (next) set({ activeCharacter: next });
+  },
+
+  grabItem: (itemId) => {
+    const { game } = get();
+    if (game.items.includes(itemId)) return;
+    set({ game: { ...game, items: [...game.items, itemId] } });
   },
 
   openOverlay: (id) => set({ overlay: id }),
@@ -841,4 +920,80 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   triggerShake: () => set((s) => ({ shakeSeq: s.shakeSeq + 1 })),
+
+  introStartBattle: () => {
+    const { game } = get();
+    // Always Canada, always the same lookup `selectBattleCountry` uses for a real
+    // declare-war — see `IntroBattleState`'s doc comment for why the *result* never
+    // reaches `resolveBattleAction`/`game` the way a real battle's does.
+    const battleground = getBattleground('canada');
+    const usSpawns = SWITCHABLE_CHARACTERS.map((id, i) => ({
+      template: US_BATTLE_UNITS[id],
+      pos: battleground.usSpawns[i] as GridPosition,
+    }));
+    const enemySpawns = getBattleRoster('canada').map((template, i) => ({
+      template,
+      pos: battleground.enemySpawns[i] as GridPosition,
+    }));
+    // Seeded off `game.rngState` alone, never written back to it — the intro battle's own
+    // `BattleState.rngState` evolves independently from there, so this fight can never
+    // consume/advance the real run's RNG stream, matching "free" in every sense.
+    const battle = createBattle(battleground.grid, usSpawns, enemySpawns, game.rngState);
+    set({ introBattle: { battle } });
+  },
+
+  introBattleMove: (pos) => {
+    const { introBattle } = get();
+    const battle = introBattle?.battle;
+    if (!battle || introBattle?.outcome) return;
+    const unit = currentUnit(battle);
+    if (unit.side !== 'us') return;
+    const moved = moveUnit(battle, unit.id, pos);
+
+    // Same auto-end-turn-on-a-no-target-move friction fix the real `battleMove` has.
+    if (
+      moved.movedThisTurn &&
+      !battle.movedThisTurn &&
+      targetsInRange(moved, unit.id).length === 0
+    ) {
+      set(settleIntroBattle(endTurn(moved)));
+      return;
+    }
+    set({ introBattle: { battle: moved } });
+  },
+
+  introBattleAttack: (targetId) => {
+    const { introBattle } = get();
+    const battle = introBattle?.battle;
+    if (!battle || introBattle?.outcome) return;
+    const unit = currentUnit(battle);
+    if (unit.side !== 'us') return;
+    if (!targetsInRange(battle, unit.id).some((t) => t.id === targetId)) return;
+
+    const afterAttack = attack(battle, unit.id, targetId).state;
+    get().triggerShake();
+    set(settleIntroBattle(endTurn(afterAttack)));
+  },
+
+  introBattleEndTurn: () => {
+    const { introBattle } = get();
+    const battle = introBattle?.battle;
+    if (!battle || introBattle?.outcome) return;
+    const unit = currentUnit(battle);
+    if (unit.side !== 'us') return;
+    set(settleIntroBattle(endTurn(battle)));
+  },
+
+  introBattleRunEnemyTurn: () => {
+    const { introBattle } = get();
+    const battle = introBattle?.battle;
+    if (!battle || introBattle?.outcome) return;
+    const unit = currentUnit(battle);
+    if (unit.side !== 'enemy') return;
+    const afterTurn = enemyTakeTurn(battle, unit.id);
+    if (afterTurn.log.length > battle.log.length) get().triggerShake();
+    set(settleIntroBattle(endTurn(afterTurn)));
+  },
+
+  finishIntro: () => set({ screen: 'game', introBattle: null }),
 }));

@@ -76,13 +76,27 @@ walkability\*\*
 Exactly the same shape as `"grid"` (same row count, same row length) — the loader rejects a
 `"terrain"` that's a different size than `"grid"` in the same file. One of:
 
-| Value           | Texture            | Renders as                                                                 | Walkable? |
-| --------------- | ------------------ | -------------------------------------------------------------------------- | --------- |
-| `"grass"`       | Green turf         | Flat                                                                       | Yes       |
-| `"rockyGround"` | Cracked dirt       | Flat                                                                       | Yes       |
-| `"stonePath"`   | Paved plaza/bridge | Flat                                                                       | Yes       |
-| `"water"`       | River              | Flat                                                                       | No        |
-| `"cliff"`       | Rock face          | **Tall extruded 3D block** — the only terrain that stands up off the field | No        |
+| Value                | Texture                      | Renders as                 | Walkable? |
+| -------------------- | ---------------------------- | -------------------------- | --------- |
+| `"grass"`            | Green turf                   | Flat                       | Yes       |
+| `"rockyGround"`      | Cracked dirt                 | Flat                       | Yes       |
+| `"stonePath"`        | Paved plaza/bridge           | Flat                       | Yes       |
+| `"water"`            | River                        | Flat                       | No        |
+| `"shoreGrass"`       | Grass meeting water          | Flat                       | Yes       |
+| `"shoreRock"`        | Rocky boulders meeting water | Flat                       | No        |
+| `"cliff"`            | Rock face                    | **Tall extruded 3D block** | No        |
+| `"waterfallColumns"` | Two-pillar waterfall         | **Tall extruded 3D block** | No        |
+| `"waterfallWide"`    | Wide waterfall               | **Tall extruded 3D block** | No        |
+| `"waterfallTall"`    | Tall/narrow waterfall        | **Tall extruded 3D block** | No        |
+
+`"cliff"` and the three `"waterfall*"` kinds are the only terrain that stands up off the
+field as a real 3D block (`BLOCK_TERRAIN` in `data/battlegrounds.ts`) — every other kind,
+including the two shoreline kinds, renders as a flat textured diamond. The `shoreGrass`/
+`shoreRock`/`waterfallColumns`/`waterfallWide`/`waterfallTall` kinds were added for a real
+user request, with 5 supplied reference tile images: _"Are you able import those tiles to
+allow me to generate the river border + waterfall?"_ A waterfall's block top face reuses
+the plain `water.png` texture (the flowing river surface at the head of the falls) — only
+its side faces use the waterfall's own art.
 
 User request: _"The terrain map should be based on the selected background tile. You can
 walk on grass, rocky ground and stonePath."_ As of that change, **`"terrain"` is no longer
@@ -104,8 +118,10 @@ be silently overridden by the loader based on `"terrain"` — edit `"terrain"` t
 walkability there, not `"grid"`.
 
 Texture image files live in `public/assets/battle-tiles/terrain/`: `grass.png`,
-`rocky-ground.png`, `stone-path.png`, `water.png`, `cliff-face.png` (the block's side),
-`cliff-top.png` (the block's flat top).
+`rocky-ground.png`, `stone-path.png`, `water.png`, `shore-grass.png`, `shore-rock.png`,
+`cliff-face.png` (the cliff block's side), `cliff-top.png` (the cliff block's flat top),
+`waterfall-columns.png`, `waterfall-wide.png`, `waterfall-tall.png` (each waterfall
+block's own side art — their block top face reuses `water.png`, no separate file).
 
 ### `"props"` — decorations (trees, buildings, fences...)
 
@@ -136,12 +152,17 @@ Generating more art for this folder (terrain or props)? See
 `public/assets/battle-tiles/ASSET_GENERATION_GUIDE.md` for the exact isometric camera
 angle to match, a prompt template, and a checklist of what's still missing.
 
-A prop is purely decorative — it never blocks movement on its own. This key is also
-optional (only `canada.json` has any today). If you add a prop to a cell that's `"floor"`
-in `"grid"`, units will be able to walk right through it, which will look wrong — for a
-file with no `"terrain"` key, set that cell to `"wall"` too if you want the prop to
+A prop is purely decorative — it never blocks movement on its own, as far as this JSON
+schema itself is concerned. If you add a prop to a cell that's `"floor"` in `"grid"`,
+units will be able to walk right through it, which will look wrong — for a file with no
+`"terrain"` key, set that cell to `"wall"` (or `"object"`) too if you want the prop to
 actually block the tile; for a file with `"terrain"` (where `"grid"` is derived, see
-above), paint that cell as `"water"` or `"cliff"` on the terrain layer instead. Not every
+above), paint that cell as `"water"` or `"cliff"` on the terrain layer instead. (The map
+editor's Props tool now does this for you automatically — placing a prop there marks the
+cell `"object"` by default while terrain is disabled, real user feedback: _"The props in
+map editor should mark the grid as object by default"_ — but a prop added by hand in this
+raw JSON still needs its own `"grid"`/`"terrain"` value set explicitly, same as always.)
+This key is also optional (only `canada.json` has any today). Not every
 prop in `canada.json` currently sits on a non-walkable cell — several decorative props
 (trees, a fence) were originally hand-placed on grass expecting `"grid"` to independently
 say `"wall"` there, and now that `"grid"` is terrain-derived, grass is walkable, so those

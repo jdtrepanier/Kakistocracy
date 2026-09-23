@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tileAt } from '@/engine/movement';
-import { getRoomLayout, hasRoomLayout, ROOM_LAYOUTS } from './roomLayouts';
+import { facingItem, getRoomLayout, hasRoomLayout, ROOM_LAYOUTS } from './roomLayouts';
 
 describe('ROOM_LAYOUTS', () => {
   it('has a rectangular grid for every room', () => {
@@ -16,6 +16,19 @@ describe('ROOM_LAYOUTS', () => {
       expect(tileAt(room.grid, room.objectAt)).toBe('object');
       for (const door of room.doors) expect(tileAt(room.grid, door.at)).toBe('door');
     }
+  });
+
+  it("places the Oval Office's item pedestal where the layout says, and it blocks movement", () => {
+    const ovalOffice = getRoomLayout('ovalOffice');
+    expect(ovalOffice.itemAt).toEqual({ x: 10, y: 6 });
+    expect(ovalOffice.itemId).toBe('autopen');
+    expect(tileAt(ovalOffice.grid, ovalOffice.itemAt!)).toBe('item');
+  });
+
+  it('has no item pedestal in rooms that were never given one', () => {
+    const treasury = getRoomLayout('treasury');
+    expect(treasury.itemAt).toBeUndefined();
+    expect(treasury.itemId).toBeUndefined();
   });
 
   it('starts every room on a walkable tile', () => {
@@ -80,5 +93,24 @@ describe('hasRoomLayout', () => {
 describe('getRoomLayout', () => {
   it('throws for a room with no layout yet', () => {
     expect(() => getRoomLayout('mapRoom')).toThrow();
+  });
+});
+
+describe('facingItem', () => {
+  it("returns the item id when standing next to the Oval Office's pedestal, facing it", () => {
+    // The pedestal sits at (10, 6) — standing one tile to its left, facing right, faces it.
+    expect(facingItem('ovalOffice', { x: 9, y: 6 }, 'right')).toBe('autopen');
+  });
+
+  it('returns undefined when facing away from the pedestal', () => {
+    expect(facingItem('ovalOffice', { x: 9, y: 6 }, 'left')).toBeUndefined();
+  });
+
+  it('returns undefined in a room with no item pedestal at all', () => {
+    expect(facingItem('treasury', { x: 1, y: 5 }, 'right')).toBeUndefined();
+  });
+
+  it('returns undefined when nowhere near the pedestal', () => {
+    expect(facingItem('ovalOffice', { x: 2, y: 5 }, 'right')).toBeUndefined();
   });
 });

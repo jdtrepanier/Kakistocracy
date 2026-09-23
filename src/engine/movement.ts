@@ -11,9 +11,12 @@ export interface GridPosition {
   readonly y: number;
 }
 
-/** 'object' and 'door' are both non-floor: an object blocks movement (you face it from
- * next to it), a door is walkable and triggers a room change when stepped onto. */
-export type TileKind = 'floor' | 'wall' | 'object' | 'door';
+/** 'object', 'item' and 'door' are all non-floor: an object or item blocks movement (you
+ * face it from next to it — a real desk/pedestal is still there whether or not its item
+ * has already been picked up, so 'item' never becomes walkable after collection), a door
+ * is walkable and triggers a room change when stepped onto. `data/roomLayouts.ts`'s
+ * `itemAt`/`itemId` say which `ItemId` (if any) a room's 'item' tile grants. */
+export type TileKind = 'floor' | 'wall' | 'object' | 'item' | 'door';
 
 export type RoomGrid = readonly (readonly TileKind[])[];
 
@@ -29,7 +32,7 @@ export function tileAt(grid: RoomGrid, pos: GridPosition): TileKind | undefined 
   return grid[pos.y]?.[pos.x];
 }
 
-/** Floor and doors can be walked onto; walls and objects block movement. */
+/** Floor and doors can be walked onto; walls, objects and items block movement. */
 export function isWalkable(grid: RoomGrid, pos: GridPosition): boolean {
   const tile = tileAt(grid, pos);
   return tile === 'floor' || tile === 'door';

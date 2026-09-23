@@ -1,3 +1,4 @@
+import { facingItem } from '@/data/roomLayouts';
 import { useGameStore } from '@/store/gameStore';
 import { playSfx } from '../audio/sfx';
 import { useT } from '../useT';
@@ -7,10 +8,26 @@ export function CrossMenu() {
   const t = useT();
   const openOverlay = useGameStore((s) => s.openOverlay);
   const switchCharacter = useGameStore((s) => s.switchCharacter);
+  const player = useGameStore((s) => s.player);
+  const items = useGameStore((s) => s.game.items);
+  const grabItem = useGameStore((s) => s.grabItem);
 
   const openWithSfx = (overlay: Parameters<typeof openOverlay>[0]) => {
     playSfx('blip');
     openOverlay(overlay);
+  };
+
+  // ITEM does double duty: facing an uncollected item's pedestal grabs it on the spot
+  // (same "act on what's in front of you" convention DECREE's own object-facing hint
+  // uses); otherwise it opens the ordinary inventory list overlay, same as before.
+  const handleItemButton = () => {
+    const targetId = facingItem(player.roomId, player.pos, player.facing);
+    if (targetId && !items.includes(targetId)) {
+      playSfx('confirm');
+      grabItem(targetId);
+      return;
+    }
+    openWithSfx('item');
   };
 
   return (
@@ -40,7 +57,7 @@ export function CrossMenu() {
       <button
         type="button"
         className="pixel-button cross-btn cross-btn-item"
-        onClick={() => openWithSfx('item')}
+        onClick={handleItemButton}
         title={t('menu.item')}
         aria-label={t('menu.item')}
       >

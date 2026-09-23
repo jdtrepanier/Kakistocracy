@@ -740,10 +740,11 @@ export const ACTIONS: readonly ActionDef[] = [
   {
     id: 'elon_reconciliation',
     nameKey: 'action.elonReconciliation.name',
-    // GAME_PLAN §8's Rage Quit passive: "find him at Starbase with the right item" — no
-    // inventory/item system exists yet (ITEM is still a stub — see i18n's
-    // `menu.item.stub`), so this is simplified to visiting him at Starbase while he's
-    // gone, no item required. Anyone but Elon himself can do it — he's the one who left.
+    // GAME_PLAN §8's Rage Quit passive: "find him at Starbase with the right item" — a
+    // real ITEM inventory exists now (`data/items.ts`), but nothing gates this action on
+    // holding a specific one yet, so this stays simplified to visiting him at Starbase
+    // while he's gone, no item required. Anyone but Elon himself can do it — he's the
+    // one who left. Worth revisiting once/if a Starbase-specific item ever exists.
     actors: ['trump', 'vance', 'bessent', 'lutnick', 'melania'],
     room: 'starbase',
     cost: { ea: 1 },

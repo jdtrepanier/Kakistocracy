@@ -55,4 +55,46 @@ describe('clampCamera', () => {
   it('centers a grid that exactly matches the viewport on both axes (nothing to scroll)', () => {
     expect(clampCamera({ x: -50, y: 50 }, viewport, viewport)).toEqual({ x: 0, y: 0 });
   });
+
+  // `horizontalPadding` (real user feedback: "We should be able to pan the isometric
+  // map more the the left and right because the player health is hidden the left and
+  // right corner" — `BattleView.tsx`'s fixed-width roster overlay panels hide whatever
+  // sits at the map's own left/right edge, and the plain clamp above stops the camera
+  // the instant the grid is flush with the viewport, with no further to pan).
+  describe('horizontalPadding', () => {
+    it('lets the grid scroll padding px past its right edge (x only)', () => {
+      expect(clampCamera({ x: -900, y: -700 }, bigGrid, viewport, 92)).toEqual({
+        x: viewport.width - bigGrid.width - 92,
+        y: viewport.height - bigGrid.height, // y unaffected — no padding param for it
+      });
+    });
+
+    it('lets the grid scroll padding px past its left edge (x only)', () => {
+      expect(clampCamera({ x: 900, y: 700 }, bigGrid, viewport, 92)).toEqual({
+        x: 92,
+        y: 0, // y unaffected
+      });
+    });
+
+    it('still clamps normally (no extra range) when padding is 0 or omitted', () => {
+      expect(clampCamera({ x: -900, y: -700 }, bigGrid, viewport, 0)).toEqual(
+        clampCamera({ x: -900, y: -700 }, bigGrid, viewport),
+      );
+    });
+
+    it('also widens the range for a grid axis smaller than the viewport (centered case)', () => {
+      const smallGrid = { width: 100, height: 800 };
+      const center = (viewport.width - smallGrid.width) / 2;
+      // Within padding of center: passed through unchanged, not snapped back to center.
+      expect(clampCamera({ x: center + 20, y: -700 }, smallGrid, viewport, 30)).toEqual({
+        x: center + 20,
+        y: viewport.height - smallGrid.height,
+      });
+      // Past padding: clamped to center ± padding, same shape as the big-grid case.
+      expect(clampCamera({ x: center + 999, y: -700 }, smallGrid, viewport, 30)).toEqual({
+        x: center + 30,
+        y: viewport.height - smallGrid.height,
+      });
+    });
+  });
 });
